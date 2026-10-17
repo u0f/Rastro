@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+
+# Compilación del .exe (build.bat / PyInstaller): el .exe se sube a las Releases, no al repo
+build/
+dist/
+*.spec
+
+# Versión Tkinter anterior: config.json lleva tus tiendas
+antiguo/
+
+# Herramientas locales del editor
+.claude/
+.impeccable/

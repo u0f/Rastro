@@ -1,0 +1,197 @@
+"""Rastro: ventana de escritorio (pywebview + WebView2). La interfaz vive en ui/, la búsqueda en busqueda/."""
+import base64
+import csv
+import hashlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import threading
+import urllib.request
+from pathlib import Path
+
+import webview
+
+import actualizar
+import busqueda
+from busqueda.navegador import navegador_usado
+from busqueda.tiendas import resolver
+
+AQUI = Path(__file__).parent
+DATOS = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Rastro"
+ESTADO = DATOS / "estado.json"
+FOTOS = DATOS / "fotos"
+SERVIDOR_FOTOS = "https://marketplace-article-scans.s3.cardmarket.com/"
+
+ventana = None
+
+
+def delante():
+    """Trae Rastro por encima del navegador, que se pone delante al abrirle una URL."""
+    ventana.on_top = True
+    ventana.on_top = False
+
+
+def a_js(tipo, **datos):
+    """Envía un evento de la búsqueda a la interfaz (window.onMotor)."""
+    if tipo == "abierta":  # se da tiempo a que la extensión esconda la pestaña
+        if datos.get("ocultar"):
+            threading.Timer(1.5, delante).start()
+        return
+    ventana.evaluate_js(f"onMotor({json.dumps({'tipo': tipo, **datos}, ensure_ascii=False)})")
+
+
+class Api:
+    """Métodos accesibles desde JS como window.pywebview.api.<nombre>."""
+
+    def __init__(self):
+        self._control = None
+
+    def cargar_estado(self):
+        return ESTADO.read_text(encoding="utf8") if ESTADO.exists() else None
+
+    def guardar_estado(self, datos):
+        ESTADO.write_text(datos, encoding="utf8")
+
+    def enlaces(self, tiendas):
+        """Enlace al stock de cada tienda, según su adaptador."""
+        return {t: resolver(t)[0].enlace(resolver(t)[1]) for t in tiendas}
+
+    def buscar_tiendas(self, cartas, tiendas, generales, refrescar=False, opciones=None):
+        """cartas: [{id, nombre, filtros}]. opciones: las de la ventana Opciones. Los resultados llegan a JS como eventos onMotor."""
+        if self._control:
+            return False
+
+        def emitir(tipo, **datos):
+            if tipo == "fin":
+                self._control = None
+            a_js(tipo, **datos)
+
+        self._control = busqueda.lanzar(cartas, tiendas, generales, emitir, DATOS, refrescar, opciones)
+        return True
+
+    def parar_busqueda(self):
+        if self._control:
+            self._control.parar()
+
+    def _foto(self, url, grande):
+        """Descarga (o lee de caché) la foto de un artículo. Su servidor solo la entrega a quien viene de
+        cardmarket.com (protección contra el uso en otras webs), así que se pide indicando esa procedencia."""
+        if not url.startswith(SERVIDOR_FOTOS):
+            return None
+        url = url.split("?")[0]
+        if grande:
+            url = re.sub(r"t(\.\w+)$", r"\1", url)  # 123t.jpg es la miniatura; 123.jpg, la foto completa
+        if Path(url).suffix.lower() not in (".jpg", ".jpeg", ".png", ".webp"):
+            return None  # solo imágenes: el archivo se abre con el programa asociado a su extensión
+        ruta = FOTOS / (hashlib.sha1(url.encode()).hexdigest()[:16] + Path(url).suffix)
+        if not ruta.exists():
+            FOTOS.mkdir(parents=True, exist_ok=True)
+            req = urllib.request.Request(url, headers={"Referer": "https://www.cardmarket.com/"})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                ruta.write_bytes(r.read())
+        return ruta
+
+    def foto_miniatura(self, url):
+        """Miniatura como data: URI para la vista previa."""
+        ruta = self._foto(url, grande=False)
+        return f"data:image/jpeg;base64,{base64.b64encode(ruta.read_bytes()).decode()}" if ruta else None
+
+    def abrir_foto(self, url):
+        """Foto a tamaño completo, abierta en el visor de imágenes predeterminado."""
+        ruta = self._foto(url, grande=True)
+        if ruta:
+            os.startfile(ruta)
+
+    def descargar_extension(self):
+        """Copia la extensión a la carpeta que elija el usuario (dentro del .exe el navegador no puede cargarla).
+        Devuelve la ruta donde ha quedado, o None si cancela."""
+        elegida = ventana.create_file_dialog(webview.FileDialog.FOLDER)
+        if not elegida:
+            return None
+        destino = Path(elegida[0] if isinstance(elegida, (list, tuple)) else elegida) / "Rastro-extension"
+        shutil.copytree(AQUI / "extension", destino, dirs_exist_ok=True)
+        os.startfile(destino)
+        return str(destino)
+
+    def navegador(self):
+        nombre, extensiones = navegador_usado()
+        return {"nombre": nombre, "extensiones": extensiones}
+
+    def copiar(self, texto):
+        """Al portapapeles. (Los navegadores no abren su página de extensiones si se la pasas desde fuera: hay que pegarla.)"""
+        subprocess.run("clip", input=texto.encode("utf-16-le"), creationflags=subprocess.CREATE_NO_WINDOW)
+
+    def probar_extension(self, ocultar=True):
+        """Primeros pasos: comprueba que la extensión del navegador responde."""
+        if self._control:
+            return False
+        return busqueda.probar(DATOS, a_js, ocultar)
+
+    def importar_moxfield(self, enlace):
+        """Mazo público de Moxfield como {nombre, formato, texto}; el texto es una decklist con secciones.
+        Se pide desde aquí porque la API de Moxfield no admite peticiones desde la interfaz (CORS)."""
+        m = re.search(r"moxfield\.com/decks/([\w-]+)", enlace)
+        if not m:
+            return None
+        req = urllib.request.Request(f"https://api2.moxfield.com/v3/decks/all/{m.group(1)}",
+                                     headers={"User-Agent": "Mozilla/5.0 Rastro", "Accept": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=20) as r:
+                d = json.load(r)
+        except OSError:
+            return {"error": "No se pudo abrir ese mazo de Moxfield. ¿Es público y el enlace está bien?"}
+        secciones = {"Commander": ["commanders"], "Deck": ["mainboard"], "Sideboard": ["sideboard", "companions"]}
+        texto = []
+        for titulo, tableros in secciones.items():
+            lineas = [f'{c["quantity"]} {c["card"]["name"]} ({c["card"]["set"].upper()})'
+                      for t in tableros for c in d["boards"].get(t, {}).get("cards", {}).values()]
+            if lineas:
+                texto += [titulo, *lineas, ""]
+        return {"nombre": d.get("name", ""), "formato": d.get("format", ""), "texto": "\n".join(texto)}
+
+    def version(self):
+        return actualizar.VERSION
+
+    def vaciar_cache(self):
+        if self._control:
+            return False
+        (DATOS / "cache.sqlite").unlink(missing_ok=True)
+        return True
+
+    def exportar_csv(self, filas):
+        """filas: lista de listas ya ordenadas por la interfaz; la primera es la cabecera."""
+        ruta = ventana.create_file_dialog(webview.FileDialog.SAVE, save_filename="ofertas_rastro.csv",
+                                          file_types=("CSV (*.csv)",))
+        if not ruta:
+            return False
+        ruta = ruta[0] if isinstance(ruta, (list, tuple)) else ruta
+        with open(ruta, "w", newline="", encoding="utf-8-sig") as fh:
+            csv.writer(fh, delimiter=";").writerows(filas)
+        return True
+
+
+def comprobar_actualizacion(api):
+    """Al arrancar: si hay una Release nueva en GitHub, se instala y Rastro se reinicia solo."""
+    actualizar.limpiar()
+    hay = actualizar.buscar()
+    if not hay or api._control:  # nunca en mitad de una búsqueda
+        return
+    version, url = hay
+    a_js("actualizando", version=version)
+    try:
+        actualizar.instalar(url)
+    except OSError:
+        a_js("actualizando", version=version, error=True)
+        return
+    ventana.destroy()
+
+
+if __name__ == "__main__":
+    DATOS.mkdir(parents=True, exist_ok=True)
+    api = Api()
+    ventana = webview.create_window("Rastro", str(AQUI / "ui" / "index.html"), js_api=api,
+                                    width=1440, height=900, min_size=(720, 560), background_color="#0b0e14")
+    # Perfil persistente: WebView2 guarda en disco la caché HTTP (imágenes de Scryfall incluidas).
+    webview.start(comprobar_actualizacion, (api,), private_mode=False, storage_path=str(DATOS / "webview"))

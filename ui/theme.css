@@ -1,0 +1,112 @@
+/* Rastro: tokens de diseño. Cambia aquí colores, fuentes, radios y espaciados. */
+
+:root {
+  /* Tipografía */
+  --font: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Inter Display", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --fs-xs: 11px;
+  --fs-sm: 12.5px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 28px;
+
+  /* Espaciado (sistema de 8 px, con medio paso de 4) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 16px;
+  --s-4: 24px;
+  --s-5: 32px;
+  --s-6: 48px;
+
+  /* Radios */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 12px;
+  --r-pill: 999px;
+
+  /* Medidas de layout */
+  --topbar-h: 64px;
+  --sidebar-w: 280px;
+  --detail-w: 420px;
+  --card-min: 180px;
+
+  /* Movimiento */
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --t-fast: 120ms;
+  --t-med: 220ms;
+
+  /* Colores de maná: solo para pips, chips de filtro y detalles */
+  --mana-w: #f1e6c4;
+  --mana-w-ink: #3b3320;
+  --mana-u: #4b8fe2;
+  --mana-b: #8a7a96;
+  --mana-r: #e45b43;
+  --mana-g: #3ea96c;
+  --mana-c: #a3a8b3;
+
+  /* Rarezas */
+  --rar-common: #9aa1ad;
+  --rar-uncommon: #a9c4d8;
+  --rar-rare: #e2b754;
+  --rar-mythic: #ec7a3c;
+
+  /* Estado de legalidad */
+  --ok: #3ea96c;
+  --warn: #e2b754;
+  --bad: #e45b43;
+}
+
+/* Tema oscuro (por defecto) */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0b0e14;
+  --surface-1: #11151d;
+  --surface-2: #171c26;
+  --surface-3: #1f2532;
+  --surface-hover: #242b39;
+  --border: #252c3a;
+  --border-strong: #343d4f;
+  --text: #e9ecf2;
+  --text-2: #a4acbb;
+  --text-3: #6b7486;
+  --accent: #d9a94e;          /* oro de coleccionista */
+  --accent-ink: #1a1408;
+  --accent-soft: rgba(217, 169, 78, .14);
+  --focus: rgba(217, 169, 78, .45);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, .35), 0 1px 3px rgba(0, 0, 0, .4);
+  --shadow-lg: 0 18px 48px rgba(0, 0, 0, .55), 0 2px 6px rgba(0, 0, 0, .4);
+  --skeleton-a: #161b24;
+  --skeleton-b: #202736;
+  --scrim: rgba(4, 6, 10, .6);
+}
+
+/* Tema claro */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f5f8;
+  --surface-1: #ffffff;
+  --surface-2: #f7f8fb;
+  --surface-3: #eceef3;
+  --surface-hover: #e6e9f0;
+  --border: #e1e4eb;
+  --border-strong: #cdd2dc;
+  --text: #141821;
+  --text-2: #4f5869;
+  --text-3: #8a93a3;
+  --accent: #a87516;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(168, 117, 22, .12);
+  --focus: rgba(168, 117, 22, .4);
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, .06);
+  --shadow-md: 0 6px 18px rgba(16, 24, 40, .08), 0 1px 3px rgba(16, 24, 40, .08);
+  --shadow-lg: 0 18px 48px rgba(16, 24, 40, .16), 0 2px 6px rgba(16, 24, 40, .08);
+  --skeleton-a: #eceef3;
+  --skeleton-b: #f6f7fa;
+  --scrim: rgba(20, 24, 33, .35);
+  --mana-w: #efe2b8;
+  --rar-common: #6f7684;
+  --rar-uncommon: #6f8ea6;
+}
