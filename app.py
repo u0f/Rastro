@@ -1,4 +1,4 @@
-"""Rastro: ventana de escritorio (pywebview + WebView2). La interfaz vive en ui/, la búsqueda en busqueda/."""
+"""Rastro: ventana de escritorio (pywebview: WebView2 en Windows, WebKit en Mac). La interfaz vive en ui/, la búsqueda en busqueda/."""
 import base64
 import csv
 import hashlib
@@ -16,11 +16,12 @@ import webview
 
 import actualizar
 import busqueda
-from busqueda.navegador import navegador_usado
+from busqueda.navegador import abrir, navegador_usado
 from busqueda.tiendas import resolver
 
 AQUI = Path(__file__).parent
-DATOS = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Rastro"
+MAC = sys.platform == "darwin"
+DATOS = (Path.home() / "Library/Application Support" if MAC else Path(os.environ.get("LOCALAPPDATA", Path.home()))) / "Rastro"
 ESTADO = DATOS / "estado.json"
 FOTOS = DATOS / "fotos"
 SERVIDOR_FOTOS = "https://marketplace-article-scans.s3.cardmarket.com/"
@@ -103,7 +104,7 @@ class Api:
         """Foto a tamaño completo, abierta en el visor de imágenes predeterminado."""
         ruta = self._foto(url, grande=True)
         if ruta:
-            os.startfile(ruta)
+            abrir(ruta)
 
     def descargar_extension(self):
         """Copia la extensión a la carpeta que elija el usuario (dentro del .exe el navegador no puede cargarla).
@@ -113,7 +114,7 @@ class Api:
             return None
         destino = Path(elegida[0] if isinstance(elegida, (list, tuple)) else elegida) / "Rastro-extension"
         shutil.copytree(AQUI / "extension", destino, dirs_exist_ok=True)
-        os.startfile(destino)
+        abrir(destino)
         return str(destino)
 
     def navegador(self):
@@ -122,7 +123,10 @@ class Api:
 
     def copiar(self, texto):
         """Al portapapeles. (Los navegadores no abren su página de extensiones si se la pasas desde fuera: hay que pegarla.)"""
-        subprocess.run("clip", input=texto.encode("utf-16-le"), creationflags=subprocess.CREATE_NO_WINDOW)
+        if MAC:
+            subprocess.run("pbcopy", input=texto.encode("utf8"))
+        else:
+            subprocess.run("clip", input=texto.encode("utf-16-le"), creationflags=subprocess.CREATE_NO_WINDOW)
 
     def probar_extension(self, ocultar=True):
         """Primeros pasos: comprueba que la extensión del navegador responde."""

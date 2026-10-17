@@ -15,7 +15,7 @@ import sys
 import urllib.request
 from pathlib import Path
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 REPO = "u0f/Rastro"  # "usuario/repositorio" de GitHub; vacío = no se buscan actualizaciones
 ARCHIVO = "Rastro.exe"
 

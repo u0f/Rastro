@@ -1,2 +1,4 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+# El lanzador de Mac es un script de bash: con CRLF no arranca
+*.command text eol=lf

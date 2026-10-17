@@ -41,6 +41,16 @@ En Cardmarket, para saber qué tiene una tienda hay que buscar carta por carta. 
    4. Pulsa **Cargar descomprimida** (en Edge se llama **Cargar desempaquetada**) y elige la carpeta `Rastro-extension`.
    5. Vuelve a Rastro y pulsa **Probar**. Cuando salga que funciona, pulsa **Continuar**.
 
+### En Mac
+
+1. Instala **Python 3** desde [python.org](https://www.python.org/downloads/) (si no lo tienes ya).
+2. Descarga el código de Rastro (**Code → Download ZIP** en GitHub) y descomprímelo donde quieras.
+3. Haz doble clic en **Rastro.command**. Si macOS dice que no puede abrirlo, ve a **Ajustes del Sistema → Privacidad y seguridad** y pulsa **Abrir igualmente** (o abre la Terminal y ejecuta `xattr -dr com.apple.quarantine` seguido de la carpeta de Rastro).
+4. La primera vez tarda un par de minutos en preparar lo que necesita. Deja abierta la ventana de Terminal mientras uses Rastro.
+5. Sigue los mismos **Primeros pasos** de arriba con Chrome, Edge o Brave como navegador predeterminado (Safari no sirve).
+
+En Mac no se actualiza solo: para una versión nueva, vuelve a descargar el ZIP. Tus datos se guardan en `~/Library/Application Support/Rastro`.
+
 Si alguna vez quitas la extensión o hay que actualizarla, Rastro te avisa y te lleva otra vez a estos pasos. También puedes abrirlos desde **Opciones → Primeros pasos**.
 
 ## Cómo se usa

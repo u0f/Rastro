@@ -50,7 +50,9 @@ Si cambias la extensión, sube su `version` en `extension/manifest.json`. Rastro
 
 **Añadir otro sitio**: crea `busqueda/tiendas/otrositio.py` con una clase como `Cardmarket` (`sitio`, `dominio`, `pestanas`, `intervalo`, `enlace()`, `buscar()`) y regístrala en `busqueda/tiendas/__init__.py`. Añade también su lector en `extension/content.js` y su dominio en `extension/manifest.json`. En la lista de tiendas se escribe como `otrositio:usuario`. Las que no llevan prefijo son de Cardmarket.
 
-Datos en `%LOCALAPPDATA%\Rastro\`:
+En Mac se ejecuta desde el código con `Rastro.command`: crea un entorno de Python en `~/Library/Application Support/Rastro/python`, instala `pywebview` y abre `app.py`. Las diferencias con Windows (navegador predeterminado, abrir archivos, portapapeles, carpeta de datos) están en `busqueda/navegador.py` (`_predeterminado`, `abrir`) y `app.py` (`MAC`).
+
+Datos en `%LOCALAPPDATA%\Rastro\` (en Mac, `~/Library/Application Support/Rastro/`):
 - `estado.json`: lista, mazos, tiendas, filtros, opciones y últimas ofertas.
 - `cache.sqlite`: páginas ya leídas.
 - `webview\`: caché de la interfaz e imágenes.

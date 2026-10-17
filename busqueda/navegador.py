@@ -14,10 +14,12 @@ import asyncio
 import concurrent.futures
 import json
 import os
+import plistlib
 import secrets
+import subprocess
+import sys
 import threading
 import time
-import winreg
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -31,30 +33,49 @@ PERDIDA = 60            # si una página tomada no responde en este tiempo, se v
 SIN_EXTENSION = 20      # segundos sin noticias de la extensión antes de avisar (configurable en Opciones)
 
 
-# Navegadores Chromium que admiten la extensión: trozo de su ProgId en el registro -> (nombre, página de extensiones)
+# Navegadores Chromium que admiten la extensión: trozo de su ProgId (Windows) o bundle id (Mac) -> (nombre, página de extensiones)
 COMPATIBLES = {"brave": ("Brave", "brave://extensions"), "chrome": ("Chrome", "chrome://extensions"),
-               "msedge": ("Edge", "edge://extensions"), "opera": ("Opera", "opera://extensions"),
-               "vivaldi": ("Vivaldi", "vivaldi://extensions")}
+               "msedge": ("Edge", "edge://extensions"), "edgemac": ("Edge", "edge://extensions"),
+               "opera": ("Opera", "opera://extensions"), "vivaldi": ("Vivaldi", "vivaldi://extensions")}
 
 
-def navegador_usado():
-    """Navegador predeterminado de Windows, donde se abren las páginas.
-    Devuelve (nombre, página de extensiones), con página None si ese navegador no admite la extensión."""
+def _predeterminado():
+    """ProgId (Windows) o bundle id (Mac) del navegador que abre los enlaces https, en minúsculas."""
+    if sys.platform == "darwin":
+        ruta = Path.home() / "Library/Preferences/com.apple.LaunchServices/com.apple.launchservices.secure.plist"
+        try:
+            manejadores = plistlib.loads(ruta.read_bytes()).get("LSHandlers", [])
+        except (OSError, ValueError):
+            manejadores = []
+        # sin entrada para https, el de Mac es Safari
+        return next((m.get("LSHandlerRoleAll", "") for m in manejadores if m.get("LSHandlerURLScheme") == "https"),
+                    "com.apple.safari").lower()
+    import winreg
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
                             r"Software\Microsoft\Windows\Shell\Associations\UrlAssociations\https\UserChoice") as k:
-            progid = winreg.QueryValueEx(k, "ProgId")[0].lower()
+            return winreg.QueryValueEx(k, "ProgId")[0].lower()
     except OSError:
-        progid = ""
+        return ""
+
+
+def navegador_usado():
+    """Navegador predeterminado del sistema, donde se abren las páginas.
+    Devuelve (nombre, página de extensiones), con página None si ese navegador no admite la extensión."""
+    progid = _predeterminado()
     for clave, nav in COMPATIBLES.items():
         if clave in progid:
             return nav
-    return ("Firefox" if "firefox" in progid else "desconocido", None)
+    otros = {"firefox": "Firefox", "safari": "Safari"}
+    return (next((n for c, n in otros.items() if c in progid), "desconocido"), None)
 
 
-def abrir_en_navegador(url):
-    """Abre la URL en el navegador predeterminado, como si hicieras clic en un enlace."""
-    os.startfile(url)
+def abrir(destino):
+    """Abre una URL, archivo o carpeta con su programa predeterminado, como si le hicieras doble clic."""
+    if sys.platform == "darwin":
+        subprocess.run(["open", str(destino)])
+    else:
+        os.startfile(destino)
 
 
 class Parado(Exception):
@@ -195,7 +216,7 @@ class Navegador:
 
     def _abrir(self, url):
         """La extensión esconde la pestaña en una ventana minimizada; "abierta" avisa para que Rastro vuelva delante."""
-        abrir_en_navegador(url)
+        abrir(url)
         self.emitir("abierta", ocultar=self.ocultar)
 
     # ---------- Lado de los adaptadores ----------
