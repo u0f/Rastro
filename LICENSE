@@ -1,0 +1,28 @@
+Licencia de Rastro
+
+Copyright (c) 2026 u0f. Todos los derechos reservados.
+
+El código fuente de Rastro es público para que se pueda leer, usar y mejorar, pero no es software libre.
+Esta licencia se aplica a todas las versiones de Rastro, incluidas las publicadas antes de su incorporación.
+
+1. Lo que puedes hacer
+   - Ver y leer el código.
+   - Descargar Rastro y ejecutarlo para tu uso personal y no comercial.
+   - Hacer un fork en GitHub y modificarlo, solo para preparar contribuciones (pull requests) a este
+     repositorio.
+
+2. Lo que no puedes hacer sin permiso por escrito del titular
+   - Copiar, redistribuir, publicar, sublicenciar o vender el código o cualquier parte de él.
+   - Reutilizar el código, total o parcialmente, en otros proyectos.
+   - Distribuir versiones modificadas de Rastro o trabajos derivados.
+
+3. Contribuciones
+   Al enviar una contribución (pull request, parche o similar), declaras que es obra tuya o que tienes
+   derecho a aportarla, y concedes al titular una licencia perpetua, mundial, gratuita e irrevocable para
+   usarla, modificarla, distribuirla y sublicenciarla como parte de Rastro o de cualquier otra forma.
+
+4. Sin garantía
+   Rastro se ofrece "tal cual", sin garantía de ningún tipo. El titular no responde de ningún daño
+   derivado de su uso.
+
+Para cualquier uso no previsto aquí, pide permiso abriendo una issue en el repositorio.
