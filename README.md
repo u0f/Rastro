@@ -44,12 +44,17 @@ En Cardmarket, para saber qué tiene una tienda hay que buscar carta por carta. 
 ### En Mac
 
 1. Instala **Python 3** desde [python.org](https://www.python.org/downloads/) (si no lo tienes ya).
-2. Descarga el código de Rastro (**Code → Download ZIP** en GitHub) y descomprímelo donde quieras.
-3. Haz doble clic en **Rastro.command**. Si macOS dice que no puede abrirlo, ve a **Ajustes del Sistema → Privacidad y seguridad** y pulsa **Abrir igualmente** (o abre la Terminal y ejecuta `xattr -dr com.apple.quarantine` seguido de la carpeta de Rastro).
-4. La primera vez tarda un par de minutos en preparar lo que necesita. Deja abierta la ventana de Terminal mientras uses Rastro.
-5. Sigue los mismos **Primeros pasos** de arriba con Chrome, Edge o Brave como navegador predeterminado (Safari no sirve).
+2. Abre la **Terminal**, pega esta línea y pulsa Intro. Descarga Rastro en la carpeta `Rastro` de tu usuario y lo abre:
+   ```bash
+   cd ~ && curl -fsSL https://github.com/u0f/Rastro/archive/refs/heads/main.zip -o rastro.zip && rm -rf Rastro && unzip -q rastro.zip && mv Rastro-main Rastro && rm rastro.zip && open Rastro/Rastro.command
+   ```
+   Descargado así, macOS no lo bloquea. Las siguientes veces basta con hacer doble clic en `Rastro.command`, dentro de la carpeta `Rastro`.
+3. La primera vez tarda un par de minutos en preparar lo que necesita. Deja abierta la ventana de Terminal mientras uses Rastro.
+4. Sigue los mismos **Primeros pasos** de arriba con Chrome, Edge o Brave como navegador predeterminado (Safari no sirve).
 
-En Mac no se actualiza solo: para una versión nueva, vuelve a descargar el ZIP. Tus datos se guardan en `~/Library/Application Support/Rastro`.
+En Mac no se actualiza solo: para una versión nueva, vuelve a pegar la misma línea. Sustituye la carpeta `Rastro` entera, pero tus datos no se pierden porque se guardan aparte, en `~/Library/Application Support/Rastro`.
+
+Si prefieres descargar el ZIP desde el navegador (**Code → Download ZIP**), macOS bloqueará `Rastro.command` la primera vez. Ve a **Ajustes del Sistema → Privacidad y seguridad** y pulsa **Abrir igualmente**.
 
 Si alguna vez quitas la extensión o hay que actualizarla, Rastro te avisa y te lleva otra vez a estos pasos. También puedes abrirlos desde **Opciones → Primeros pasos**.
 
