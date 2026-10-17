@@ -1,4 +1,4 @@
-<p align="center"><img src="assets/logo.png" width="96" alt="Logo de Rastro"></p>
+<p align="center"><img src="src/assets/logo.png" width="96" alt="Logo de Rastro"></p>
 
 <h1 align="center">Rastro</h1>
 
@@ -106,6 +106,6 @@ No. Rastro solo busca y compara. La compra la haces tú en Cardmarket con los en
 
 Rastro no está afiliado a Cardmarket, Scryfall, Moxfield ni Wizards of the Coast. Magic: The Gathering es una marca de Wizards of the Coast.
 
-¿Quieres colaborar o compilarlo tú? Mira las [notas de desarrollo](DESARROLLO.md).
+¿Quieres colaborar o compilarlo tú? Mira las [notas de desarrollo](docs/DESARROLLO.md).
 
 El código es público pero no libre: puedes usarlo y proponer mejoras, pero no copiarlo ni reutilizarlo en otros proyectos. Detalles en la [licencia](LICENSE).

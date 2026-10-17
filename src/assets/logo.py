@@ -1,6 +1,6 @@
 """Dibuja el logo de Rastro (una carta dorada y el rastro de maná que lleva a ella) y genera:
 assets/logo.png, assets/logo.ico (icono del .exe), ui/logo.png y los iconos de la extensión.
-Uso: py assets/logo.py   (necesita Pillow)"""
+Uso: py src/assets/logo.py   (necesita Pillow)"""
 from pathlib import Path
 
 from PIL import Image, ImageDraw

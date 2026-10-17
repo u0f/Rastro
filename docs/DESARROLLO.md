@@ -1,13 +1,13 @@
 # Rastro: notas de desarrollo
 
-Lo técnico: cómo publicar versiones, cómo busca y qué hace cada archivo. La guía para usuarios está en el [README](README.md).
+Lo técnico: cómo publicar versiones, cómo busca y qué hace cada archivo. La guía para usuarios está en el [README](../README.md).
 
 ## Publicar versiones (actualización automática)
 
-El `.exe` se actualiza solo: al abrirse mira la última Release del repositorio de GitHub (`REPO` en `actualizar.py`). Si su etiqueta es mayor que `VERSION`, descarga el `Rastro.exe` adjunto, lo cambia por el actual y se reinicia. Si no hay conexión o no hay Releases, sigue con la versión que tiene. Desde el código fuente (`Rastro.bat`) no se actualiza nada.
+El `.exe` se actualiza solo: al abrirse mira la última Release del repositorio de GitHub (`REPO` en `src/actualizar.py`). Si su etiqueta es mayor que `VERSION`, descarga el `Rastro.exe` adjunto, lo cambia por el actual y se reinicia. Si no hay conexión o no hay Releases, sigue con la versión que tiene. Desde el código fuente (`Rastro.bat`) no se actualiza nada.
 
 Para publicar:
-1. Sube `VERSION` en `actualizar.py` (por ejemplo, `1.1.0`). La primera vez, rellena también `REPO` (`usuario/repositorio`).
+1. Sube `VERSION` en `src/actualizar.py` (por ejemplo, `1.1.0`). La primera vez, rellena también `REPO` (`usuario/repositorio`).
 2. Ejecuta `build.bat` (necesita `py -m pip install pyinstaller pywebview`). Deja el archivo en `dist\Rastro.exe`.
 3. En GitHub crea una Release con la etiqueta `v1.1.0` y adjunta `dist\Rastro.exe` con ese nombre exacto.
 
@@ -30,11 +30,13 @@ Si cambias la extensión, sube su `version` en `extension/manifest.json`. Rastro
 
 ## Arquitectura
 
+En la raíz solo están los lanzadores (`Rastro.bat` en Windows, `Rastro.command` en Mac), `build.bat` y los documentos. El código está en `src/` y estas notas en `docs/`. Las rutas de la tabla son relativas a `src/`.
+
 | Archivo | Qué hace |
 |---|---|
 | `actualizar.py` | Actualización automática: `VERSION`, `REPO`, comparación con la última Release de GitHub y cambio del `.exe` en uso (el viejo queda como `Rastro.old.exe` y se borra al siguiente arranque). |
 | `assets/` | Logo: `logo.py` lo dibuja y genera `logo.png`, `logo.ico` (icono del `.exe`), `ui/logo.png` y `extension/iconos/`. |
-| `build.bat` | Crea `dist\Rastro.exe` con PyInstaller. |
+| `../build.bat` | Crea `dist\Rastro.exe` con PyInstaller. |
 | `app.py` | Ventana (pywebview). Expone a JS (`window.pywebview.api`) el estado, la búsqueda, la extensión, Moxfield, la caché y el CSV. Reenvía los eventos de búsqueda a `onMotor(...)` en la interfaz. |
 | `busqueda/__init__.py` | Orquestador. Lanza todas las tiendas a la vez en un hilo con asyncio, aísla los fallos de cada tienda y emite eventos: `plan`, `progreso`, `resultado`, `no_tienda`, `tienda_fin`, `espera`, `captcha`, `extension`, `error`, `fin`. |
 | `busqueda/navegador.py` | Modo asistido: servidor local para la extensión, cola de páginas (una pestaña), límites por dominio, backoff, captcha y caché. Abre las URLs en el navegador predeterminado y detecta cuál es (`navegador_usado`). |
@@ -50,7 +52,7 @@ Si cambias la extensión, sube su `version` en `extension/manifest.json`. Rastro
 
 **Añadir otro sitio**: crea `busqueda/tiendas/otrositio.py` con una clase como `Cardmarket` (`sitio`, `dominio`, `pestanas`, `intervalo`, `enlace()`, `buscar()`) y regístrala en `busqueda/tiendas/__init__.py`. Añade también su lector en `extension/content.js` y su dominio en `extension/manifest.json`. En la lista de tiendas se escribe como `otrositio:usuario`. Las que no llevan prefijo son de Cardmarket.
 
-En Mac se ejecuta desde el código con `Rastro.command`: crea un entorno de Python en `~/Library/Application Support/Rastro/python`, instala `pywebview` y abre `app.py`. Las diferencias con Windows (navegador predeterminado, abrir archivos, portapapeles, carpeta de datos) están en `busqueda/navegador.py` (`_predeterminado`, `abrir`) y `app.py` (`MAC`).
+En Mac se ejecuta desde el código con `Rastro.command`: crea un entorno de Python en `~/Library/Application Support/Rastro/python`, instala `pywebview` y abre `src/app.py`. Las diferencias con Windows (navegador predeterminado, abrir archivos, portapapeles, carpeta de datos) están en `busqueda/navegador.py` (`_predeterminado`, `abrir`) y `app.py` (`MAC`).
 
 Datos en `%LOCALAPPDATA%\Rastro\` (en Mac, `~/Library/Application Support/Rastro/`):
 - `estado.json`: lista, mazos, tiendas, filtros, opciones y últimas ofertas.

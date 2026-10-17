@@ -17,4 +17,4 @@ if ! "$ENTORNO/bin/python3" -c "import webview" 2>/dev/null; then
   "$ENTORNO/bin/python3" -m pip install -q pywebview || { read -r -p "No se pudo instalar pywebview. Pulsa Intro."; exit 1; }
 fi
 
-exec "$ENTORNO/bin/python3" app.py
+exec "$ENTORNO/bin/python3" src/app.py

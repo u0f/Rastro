@@ -1,2 +1,2 @@
 @echo off
-start "" pyw "%~dp0app.py"
+start "" pyw "%~dp0src\app.py"
