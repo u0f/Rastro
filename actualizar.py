@@ -15,7 +15,7 @@ import sys
 import urllib.request
 from pathlib import Path
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 REPO = "u0f/Rastro"  # "usuario/repositorio" de GitHub; vacío = no se buscan actualizaciones
 ARCHIVO = "Rastro.exe"
 
@@ -28,7 +28,8 @@ def _num(v):
 
 
 def buscar():
-    """(versión, url de descarga) si hay una Release más nueva que esta, si no None."""
+    """(versión, url de descarga) si hay una Release más nueva que esta, si no None.
+    Lanza OSError si no se puede consultar GitHub (sin conexión, sin Releases…)."""
     if not getattr(sys, "frozen", False) or not REPO:
         return None
     req = urllib.request.Request(f"https://api.github.com/repos/{REPO}/releases/latest",
@@ -36,8 +37,8 @@ def buscar():
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
             rel = json.load(r)
-    except (OSError, ValueError):
-        return None  # sin conexión o sin Releases: se sigue con la versión actual
+    except ValueError as e:
+        raise OSError("respuesta no válida de GitHub") from e
     url = next((a["browser_download_url"] for a in rel.get("assets", []) if a["name"] == ARCHIVO), None)
     if url and _num(rel.get("tag_name", "")) > _num(VERSION):
         return rel["tag_name"].lstrip("vV"), url

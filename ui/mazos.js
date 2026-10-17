@@ -25,6 +25,10 @@ const fmtMazo = d => FORMATOS_MAZO[d.format] || FORMATOS_MAZO.casual;
 const tipoDe = c => (faces(c)[0].type_line || c.type_line || "").toLowerCase();
 const esTierra = c => tipoDe(c).includes("land");
 const precio = c => parseFloat(eur(c)) || 0;
+// Foil de una entrada del mazo: lo que eligió el usuario o, si nunca lo tocó, si la carta solo existe en foil
+const esFoil = e => e.foil ?? soloFoil(e.card);
+const tieneFoil = c => !c.finishes || c.finishes.some(f => f !== "nonfoil");
+const precioE = e => parseFloat(esFoil(e) ? e.card.prices?.eur_foil || e.card.prices?.eur_etched || e.card.prices?.eur : eur(e.card)) || 0;
 const libre = c => /basic land/i.test(c.type_line) || /any number of cards named/i.test(c.oracle_text || "");
 const cuenta = (es, f = () => true) => es.filter(f).reduce((n, e) => n + e.qty, 0);
 
@@ -65,9 +69,9 @@ function infoMazo(d) {
   const juego = d.cards.filter(e => e.zone !== "side");                // lo que cuenta para el tamaño
   const todas = d.cards;
   const total = cuenta(juego);
-  const valor = todas.reduce((s, e) => s + precio(e.card) * e.qty, 0);
+  const valor = todas.reduce((s, e) => s + precioE(e) * e.qty, 0);
   const faltan = todas.filter(e => !e.have);
-  const sinPrecio = cuenta(todas, e => !precio(e.card));
+  const sinPrecio = cuenta(todas, e => !precioE(e));
   const cmds = d.cards.filter(e => e.zone === "commander");
   const identidad = new Set(cmds.flatMap(e => e.card.color_identity || []));
 
@@ -111,7 +115,7 @@ function infoMazo(d) {
   const cmcMedio = noTierras.length ? noTierras.reduce((s, e) => s + (e.card.cmc || 0) * e.qty, 0) / cuenta(noTierras) : 0;
 
   return { f, total, valor, sinPrecio, tengo: cuenta(todas, e => e.have), copias: cuenta(todas), distintas: new Set(todas.map(e => e.card.oracle_id || e.card.name)).size,
-    faltan, faltanCopias: cuenta(faltan), faltanValor: faltan.reduce((s, e) => s + precio(e.card) * e.qty, 0),
+    faltan, faltanCopias: cuenta(faltan), faltanValor: faltan.reduce((s, e) => s + precioE(e) * e.qty, 0),
     avisos, curva, pips, tipos, cmcMedio, identidad: [...identidad], bracket: f.cmd ? bracket(juego) : null };
 }
 
@@ -149,7 +153,7 @@ function renderDecks() {
   const i = infoMazo(d);
   title.textContent = d.name;
   count.textContent = `${i.f.n} · ${i.total} cartas`;
-  const portada = d.cards.find(e => e.zone === "commander")?.card || d.cards[0]?.card;
+  const portada = d.cards.find(e => e.zone === "commander") || d.cards[0];
   results.innerHTML = `
     <div class="deck-head">
       <button class="btn sm ghost" data-deck-back>← Mazos</button>
@@ -182,8 +186,9 @@ function renderDecks() {
         ${d.cards.length ? listaMazo(d, i) : `<p class="deck-empty">Este mazo está vacío. Busca cartas arriba o pulsa <b>Pegar lista</b>.</p>`}
       </div>
       <aside class="deck-side">
-        ${portada ? `<img class="deck-preview" id="deckPreview" alt="" src="${esc(img(portada))}" data-def="${esc(img(portada))}">` : ""}
-        ${i.bracket ? panelBracket(i.bracket) : ""}
+        ${portada ? `<span class="deck-preview-wrap${esFoil(portada) ? " foil" : ""}" id="deckPreviewWrap" data-def-foil="${esFoil(portada) ? 1 : ""}"><img class="deck-preview" id="deckPreview" alt="" src="${esc(img(portada.card))}" data-def="${esc(img(portada.card))}"></span>` : ""}
+        ${panelCombos(d)}
+        ${i.bracket ? panelBracket(i.bracket, d) : ""}
         ${panelLegal(i)}
         ${panelCurva(i)}
         ${panelColores(i)}
@@ -210,15 +215,16 @@ function listaMazo(d, i) {
     return `<div class="deck-row${e.have ? " have" : ""}${fuera ? " bad" : ""}" data-k="${k}">
       <label class="deck-have" title="La tengo"><input type="checkbox" data-deck-have="${k}"${e.have ? " checked" : ""}><span>Tengo</span></label>
       <span class="deck-qty"><button data-deck-qty="${k}" data-d="-1" title="Quitar una">−</button><b>${e.qty}</b><button data-deck-qty="${k}" data-d="1" title="Añadir una">+</button></span>
-      <button class="deck-cname" data-deck-card="${k}" title="Ver carta">${esc(c.name)}</button>
+      <button class="deck-cname" data-deck-card="${k}" title="Ver carta">${esc(c.name)}${esFoil(e) ? ` <span class="foil-tag">Foil</span>` : ""}</button>
       <span class="cost">${cost(manaCost(c))}</span>
-      <span class="deck-price">${precio(c) ? fmtEur(precio(c) * e.qty) : ""}</span>
+      <span class="deck-price">${precioE(e) ? fmtEur(precioE(e) * e.qty) : ""}</span>
       <select class="deck-zone" data-deck-zone="${k}" title="Mover a">${Object.entries(ZONAS).filter(([z]) => z !== "commander" || i.f.cmd || i.f.cmdOpcional)
         .map(([z, n]) => `<option value="${z}"${z === e.zone ? " selected" : ""}>${n}</option>`).join("")}</select>
+      <button class="icon-btn sm" data-deck-art="${k}" title="Cambiar arte o edición"><svg class="ic"><use href="#i-flip"/></svg></button>
       <button class="icon-btn sm" data-deck-rm="${k}" title="Quitar del mazo"><svg class="ic"><use href="#i-x"/></svg></button>
     </div>`;
   }).join("");
-  const grupo = (titulo, es) => es.length ? `<section class="deck-group"><h3>${titulo}<span>${cuenta(es)}</span><span class="deck-sub">${fmtEur(es.reduce((s, e) => s + precio(e.card) * e.qty, 0))}</span></h3>${filas(es)}</section>` : "";
+  const grupo = (titulo, es) => es.length ? `<section class="deck-group"><h3>${titulo}<span>${cuenta(es)}</span><span class="deck-sub">${fmtEur(es.reduce((s, e) => s + precioE(e) * e.qty, 0))}</span></h3>${filas(es)}</section>` : "";
   const main = d.cards.filter(e => e.zone === "main");
   const usados = new Set();
   const porTipo = GRUPOS.map(([n, t]) => {
@@ -230,11 +236,13 @@ function listaMazo(d, i) {
     + grupo("Otras", main.filter(e => !usados.has(e))) + grupo("Banquillo", d.cards.filter(e => e.zone === "side"));
 }
 
-function panelBracket({ b, motivos }) {
+function panelBracket({ b, motivos }, d) {
+  const dos = combosAlDia(d) ? d.combos.en.filter(c => c.cartas.length === 2).length : null;
   return `<section class="deck-panel"><h3>Bracket estimado</h3>
     <div class="deck-bracket"><b>${b}</b><span>${BRACKETS[b]}</span></div>
     <p class="deck-note">${motivos.length ? motivos.map(esc).join("<br>") : "Sin Game Changers, destrucción masiva de tierras ni turnos extra."}</p>
-    <p class="deck-note muted">No detecta combos: si el mazo tiene un combo rápido de dos cartas, súbelo a 4.</p></section>`;
+    <p class="deck-note muted">${dos ? `Tiene ${dos} combo${dos > 1 ? "s" : ""} de dos cartas: si se puede${dos > 1 ? "n" : ""} armar pronto en la partida, es bracket 4.`
+      : dos === 0 ? "Sin combos de dos cartas." : "Busca los combos del mazo para afinar el bracket: un combo rápido de dos cartas es bracket 4."}</p></section>`;
 }
 function panelLegal(i) {
   return `<section class="deck-panel"><h3>Legalidad · ${i.f.n}</h3>${i.avisos.length
@@ -252,6 +260,82 @@ function panelColores(i) {
   return `<section class="deck-panel"><h3>Colores y tipos</h3>
     ${total ? `<div class="deck-pips">${pips.map(([c, n]) => `<span>${pip(c)}<b>${n}</b><small>${Math.round(n / total * 100)} %</small></span>`).join("")}</div>` : ""}
     <div class="deck-types">${i.tipos.map(([n, q]) => `<span>${n}<b>${q}</b></span>`).join("")}</div></section>`;
+}
+
+/* ---------- Combos (Commander Spellbook) ---------- */
+// La búsqueda se guarda con una firma de la lista: si cambias cartas, se avisa de que hay que repetirla
+const firmaMazo = d => d.cards.filter(e => e.zone !== "side").map(e => e.card.name).sort().join("|");
+const combosAlDia = d => d.combos && d.combos.firma === firmaMazo(d);
+
+async function buscarCombos() {
+  const d = deckActual(); if (!d) return;
+  const nombres = z => d.cards.filter(e => e.zone === z).map(e => ({ card: faces(e.card)[0].name }));
+  const cuerpo = { commanders: nombres("commander"), main: nombres("main") };
+  if (!cuerpo.commanders.length && !cuerpo.main.length) return toast("El mazo está vacío");
+  S.buscandoCombos = true; render();
+  let r = null;
+  try {
+    r = bridge() ? await bridge().buscar_combos(cuerpo)
+      : (await (await fetch("https://backend.commanderspellbook.com/find-my-combos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) })).json()).results;
+  } catch { }
+  S.buscandoCombos = false;
+  if (!r) { render(); return toast("No se pudo consultar Commander Spellbook. Inténtalo de nuevo"); }
+  const tengo = new Set(d.cards.flatMap(e => [e.card.name, faces(e.card)[0].name]));
+  const resumen = c => ({ id: c.id, cartas: c.uses.map(u => u.card.name), produce: c.produces.map(p => p.feature.name),
+    mana: c.manaNeeded || "", pasos: c.description || "", requisitos: [c.easyPrerequisites, c.notablePrerequisites].filter(Boolean).join("\n") });
+  const porUso = (a, b) => (b.popularity || 0) - (a.popularity || 0);
+  d.combos = { firma: firmaMazo(d), en: r.included.sort(porUso).map(resumen),
+    casi: r.almostIncluded.sort(porUso).slice(0, 8).map(c => ({ ...resumen(c), falta: c.uses.map(u => u.card.name).filter(n => !tengo.has(n)) })) };
+  save(); render();
+}
+
+const comboHTML = (c, casi) => `<details class="combo">
+  <summary><span class="combo-cards">${c.cartas.map(n => `<b${casi && c.falta.includes(n) ? ' class="falta"' : ""}>${esc(n)}</b>`).join("")}</span>
+    <span class="combo-res">${c.produce.slice(0, 3).map(esc).join(" · ")}</span></summary>
+  ${c.mana ? `<p>Maná: ${symbols(c.mana)}</p>` : ""}
+  ${c.requisitos ? `<p class="muted">${esc(c.requisitos).replace(/\n/g, "<br>")}</p>` : ""}
+  <ol>${c.pasos.split("\n").filter(Boolean).map(p => `<li>${symbols(p)}</li>`).join("")}</ol>
+  <a href="https://commanderspellbook.com/combo/${encodeURIComponent(c.id)}/" target="_blank" rel="noopener">Ver en Commander Spellbook</a>
+</details>`;
+
+function panelCombos(d) {
+  const c = d.combos, viejo = c && !combosAlDia(d);
+  const boton = `<button class="btn sm" data-deck-combos${S.buscandoCombos ? " disabled" : ""}>${S.buscandoCombos ? "Buscando…" : c ? "Volver a buscar" : "Buscar combos"}</button>`;
+  if (!c) return `<section class="deck-panel"><h3>Combos</h3><p class="deck-note">Busca qué combos hay dentro del mazo y cuáles tienes a una carta, con los datos de Commander Spellbook.</p><p class="deck-note">${boton}</p></section>`;
+  return `<section class="deck-panel"><h3>Combos<span>${c.en.length}</span></h3>
+    ${viejo ? `<p class="deck-note warn">Has cambiado cartas desde la última búsqueda.</p>` : ""}
+    ${c.en.length ? c.en.map(x => comboHTML(x)).join("") : `<p class="deck-note">No hay combos completos en el mazo.</p>`}
+    ${c.casi.length ? `<h4 class="combo-sub">A una carta</h4>${c.casi.map(x => comboHTML(x, true)).join("")}` : ""}
+    <p class="deck-note">${boton}</p></section>`;
+}
+
+/* ---------- Cambiar el arte (impresión) de una carta del mazo ---------- */
+let arteDe = null; // la entrada del mazo a la que se le está cambiando el arte
+async function elegirArte(e) {
+  arteDe = e;
+  const dlg = $("#artDlg"), box = $("#artGrid");
+  $("#artTitle").textContent = `Arte de ${e.card.name}`;
+  $("#artFoil").checked = esFoil(e);
+  box.innerHTML = Array.from({ length: 8 }, () => `<span class="print skel"></span>`).join("");
+  dlg.showModal();
+  let ps = [e.card];
+  try { if (e.card.prints_search_uri) ps = (await scry(e.card.prints_search_uri)).data; } catch { box.innerHTML = `<p class="deck-note">No se pudieron cargar las ediciones.</p>`; return; }
+  if (arteDe !== e) return;
+  ps = ps.filter(p => !p.digital);
+  box._prints = ps;
+  pintarArtes();
+}
+// Con "Versión foil" marcada, las ediciones que existen en foil se ven con brillo y su precio foil
+function pintarArtes() {
+  const box = $("#artGrid"), quiere = $("#artFoil").checked, e = arteDe;
+  if (!box._prints || !e) return;
+  box.innerHTML = box._prints.map(p => {
+    const foil = soloFoil(p) || (quiere && tieneFoil(p));
+    const pr = foil ? p.prices?.eur_foil || p.prices?.eur_etched : p.prices?.eur;
+    return `<button class="art-opt${p.id === e.card.id ? " on" : ""}" data-art-pick="${p.id}" title="${esc(p.set_name)} · #${esc(p.collector_number)}">
+      <span class="skel${foil ? " foil" : ""}"><img loading="lazy" alt="" src="${esc(img(p))}" onload="this.parentElement.classList.remove('skel')"></span>
+      <small>${esc(p.set_name)} · ${pr ? fmtEur(pr) : "sin precio"}${soloFoil(p) ? " · solo foil" : !tieneFoil(p) ? " · sin foil" : ""}</small></button>`;
+  }).join("");
 }
 
 /* ---------- Acciones ---------- */
@@ -321,8 +405,13 @@ function comprarFaltan() {
   const copias = cuenta(faltan);
   if (!confirm(`Se pondrán en Mi lista las ${faltan.length} cartas que te faltan (${copias} copias), reemplazando lo que haya, y se buscarán en tus ${S.shops.length} tiendas. ¿Seguir?`)) return;
   const porCarta = new Map();
-  for (const e of faltan) porCarta.set(e.card.id, { card: e.card, qty: (porCarta.get(e.card.id)?.qty || 0) + e.qty });
-  S.list = [...porCarta.values()].map(({ card, qty }) => ({ ...card, _f: { qty } }));
+  for (const e of faltan) {
+    const p = porCarta.get(e.card.id);
+    porCarta.set(e.card.id, { card: e.card, qty: (p?.qty || 0) + e.qty, foil: (p ? p.foil : true) && esFoil(e) });
+  }
+  // Las cartas foil del mazo se buscan solo en foil (se puede cambiar en sus filtros de Mi lista)
+  S.list = [...porCarta.values()].map(({ card, qty, foil }) => ({ ...card, _f: foil ? { qty, foil: "si" } : { qty } }));
+  S.sel.clear();
   save();
   goView("results");
   startShopSearch();
@@ -361,6 +450,16 @@ async function anadirCarta(nombre) {
 
 document.addEventListener("click", e => {
   const t = e.target;
+  const pick = t.closest("[data-art-pick]");
+  if (pick && arteDe) {
+    const p = $("#artGrid")._prints.find(x => x.id === pick.dataset.artPick);
+    if (p) {
+      arteDe.card = p;
+      arteDe.foil = soloFoil(p) || ($("#artFoil").checked && tieneFoil(p));
+      save(); render(); toast(`${p.set_name}${arteDe.foil ? " · foil" : ""}`);
+    }
+    $("#artDlg").close(); arteDe = null; return;
+  }
   if (S.view !== "decks" && !t.closest("[data-deck-new]")) return;
   const d = deckActual();
   const k = el => d.cards[+el];
@@ -371,6 +470,7 @@ document.addEventListener("click", e => {
   if (!d) return;
   if (t.closest("[data-deck-paste]")) return pegarEnMazo();
   if (t.closest("[data-deck-export]")) return copiarLista();
+  if (t.closest("[data-deck-combos]")) return buscarCombos();
   if (t.closest("[data-deck-buy]")) return comprarFaltan();
   if (t.closest("[data-deck-delete]")) {
     if (confirm(`¿Eliminar el mazo “${d.name}”? No se puede deshacer.`)) { S.decks = S.decks.filter(m => m !== d); S.deck = null; save(); render(); }
@@ -382,6 +482,7 @@ document.addEventListener("click", e => {
     if (c.qty < 1) d.cards.splice(d.cards.indexOf(c), 1);
     save(); render(); return;
   }
+  if ((x = t.closest("[data-deck-art]"))) return elegirArte(k(x.dataset.deckArt));
   if ((x = t.closest("[data-deck-rm]"))) { d.cards.splice(+x.dataset.deckRm, 1); save(); render(); return; }
   if ((x = t.closest("[data-deck-card]"))) { openDetail(k(x.dataset.deckCard).card); return; }
   if ((x = t.closest("[data-deck-pick]"))) { $("#deckSuggest").hidden = true; $("#deckAddInput").value = ""; anadirCarta(x.dataset.deckPick); return; }
@@ -395,6 +496,7 @@ document.addEventListener("change", e => {
   else if (t.id === "deckFormat") { d.format = t.value; save(); render(); }
 });
 document.addEventListener("input", e => { if (e.target.id === "deckAddInput") sugerirMazo(e.target.value.trim()); });
+document.addEventListener("change", e => { if (e.target.id === "artFoil") pintarArtes(); });
 document.addEventListener("submit", e => {
   if (e.target.id === "deckAdd") {
     e.preventDefault();
@@ -409,6 +511,9 @@ document.addEventListener("submit", e => {
 document.addEventListener("mouseover", e => {
   const row = e.target.closest?.(".deck-row"), pv = $("#deckPreview"), d = deckActual();
   if (!pv || !d) return;
-  const src = row ? img(d.cards[+row.dataset.k].card) : pv.dataset.def;
+  const ent = row && d.cards[+row.dataset.k];
+  const src = ent ? img(ent.card) : pv.dataset.def;
   if (pv.getAttribute("src") !== src) pv.src = src;
+  const foil = ent ? esFoil(ent) : !!$("#deckPreviewWrap").dataset.defFoil; // la imagen sigue a la fila: foil si esa carta lo es
+  $("#deckPreviewWrap").classList.toggle("foil", foil);
 });

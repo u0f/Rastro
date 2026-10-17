@@ -14,7 +14,7 @@ const FORMATOS = { standard: "Standard", pioneer: "Pioneer", modern: "Modern", l
 const MODO_COLOR = { incl: "incluye", exact: "exacto", id: "identidad" };
 const PIP_COLOR = { W: "--mana-w", U: "--mana-u", B: "--mana-b", R: "--mana-r", G: "--mana-g", C: "--mana-c" };
 
-const OPT_DEF = { pausa: 1.5, espera: 20, cache: 6, ver: false };
+const OPT_DEF = { pausa: 1.5, espera: 20, cache: 6, ver: false, foil: true };
 const S = {
   view: "explore",
   q: "", exact: false,
@@ -29,6 +29,7 @@ const S = {
   setup: false,                                       // primeros pasos completados
   opt: { ...OPT_DEF },                                // ventana Opciones
   decks: [], deck: null,                              // mazos (mazos.js) y el abierto
+  sel: new Set(),                                     // cartas de Mi lista marcadas para buscar (vacío = todas)
 };
 let sets = [];
 
@@ -77,6 +78,10 @@ const cost = mc => mc ? `<span class="cost">${symbols(mc)}</span>` : "";
 const faces = c => c.card_faces && !c.image_uris ? c.card_faces : [c];
 const img = (c, size = "normal", face = 0) => (faces(c)[face]?.image_uris || c.image_uris || {})[size] || "";
 const eur = c => c.prices?.eur || c.prices?.eur_foil;
+// Cartas que solo se imprimieron en foil (o etched): se dibujan con el brillo foil en toda la app
+const soloFoil = c => !!c.finishes && !c.finishes.includes("nonfoil");
+// Se dibuja foil si solo existe en foil o si en Mi lista la has pedido "Solo foil"
+const verFoil = c => soloFoil(c) || c._f?.foil === "si";
 const fmtEur = v => v ? `${Number(v).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : "—";
 const inList = id => S.list.some(c => c.id === id);
 const manaCost = c => c.mana_cost ?? (c.card_faces || []).map(f => f.mana_cost).filter(Boolean).join(" // ");
@@ -108,14 +113,16 @@ async function scry(url) {
   return r.json();
 }
 
+// Sin búsqueda ni filtros, Explorar enseña las últimas cartas impresas en papel, de la más nueva a la más antigua
+const NOVEDADES = "game:paper -t:token -t:emblem -t:basic -layout:art_series -is:digital";
 async function search() {
   const q = buildQuery();
   const id = ++S.req;
   S.results = []; S.total = 0; S.next = null; S.error = null;
-  if (!q) { S.loading = false; render(); return; }
   S.loading = true; render();
+  const params = q ? { q, order: S.sort, dir: S.dir, unique: "cards" } : { q: NOVEDADES, order: "released", dir: "desc", unique: "prints" };
   try {
-    const d = await scry(`${API}/cards/search?${new URLSearchParams({ q, order: S.sort, dir: S.dir, unique: "cards" })}`);
+    const d = await scry(`${API}/cards/search?${new URLSearchParams(params)}`);
     if (id !== S.req) return;
     S.results = d.data; S.total = d.total_cards; S.next = d.has_more ? d.next_page : null;
     if (S.exact && S.results.length === 1) openDetail(S.results[0]);
@@ -153,9 +160,10 @@ function cardHTML(c, i) {
   const added = inList(c.id);
   const small = S.layout === "rows";
   return `<div class="card${S.selected?.id === c.id ? " selected" : ""}" tabindex="0" data-id="${c.id}" style="--i:${i}">
-    <div class="art skel"><img alt="${esc(c.name)}" loading="lazy" decoding="async" src="${esc(img(c, small ? "art_crop" : "normal"))}"></div>
+    ${S.view === "list" ? `<label class="sel-box" title="Buscar solo las marcadas"><input type="checkbox" data-sel="${c.id}"${S.sel.has(c.id) ? " checked" : ""}></label>` : ""}
+    <div class="art skel${verFoil(c) ? " foil" : ""}"${soloFoil(c) ? ' title="Solo existe en foil"' : ""}><img alt="${esc(c.name)}" loading="lazy" decoding="async" src="${esc(img(c, small ? "art_crop" : "normal"))}"></div>
     <div class="meta">
-      <div class="name" title="${esc(c.name)}">${S.view === "list" && qtyOf(c) > 1 ? `<span class="qty">${qtyOf(c)}×</span>` : ""}${esc(c.name)}</div>
+      <div class="name" title="${esc(c.name)}">${S.view === "list" && qtyOf(c) > 1 ? `<span class="qty">${qtyOf(c)}×</span>` : ""}<span class="nm">${esc(c.name)}</span>${S.view === "list" ? foilBtn(c) : ""}</div>
       <div class="sub"><i class="rdot rar-${r}" title="${RAREZA[r] || r}"></i><span class="set">${esc(c.set_name)}</span><span class="price">${fmtEur(eur(c))}</span></div>
       <div class="avail-slot">${availHTML(c.id)}</div>
     </div>
@@ -166,6 +174,21 @@ function cardHTML(c, i) {
     <span class="avail-col row-only avail-slot">${availHTML(c.id)}</span>
     <button class="add-btn${added ? " in" : ""}" data-add="${c.id}" title="${added ? "Quitar de mi lista" : "Añadir a mi lista"}"><svg class="ic"><use href="#i-${added ? "check" : "plus"}"/></svg></button>
   </div>`;
+}
+
+// En Mi lista: botón para comprar esa carta solo en foil (es el filtro "Foil: Solo foil" de la carta)
+function foilBtn(c) {
+  if (soloFoil(c)) return ` <span class="foil-tag" title="Solo existe en foil">Foil</span>`;
+  const on = c._f?.foil === "si";
+  return ` <button class="foil-btn${on ? " on" : ""}" data-foilsel="${c.id}" title="${on ? "Se busca solo en foil. Pulsa para aceptar cualquiera" : "Comprar solo en foil"}">Foil</button>`;
+}
+function toggleFoil(id) {
+  const c = listItem(id); if (!c) return;
+  const f = { ...c._f };
+  if (f.foil === "si") delete f.foil; else f.foil = "si";
+  c._f = f; save(); render();
+  if (S.selected?.id === id) { S.selected = c; renderDetail(); }
+  toast(f.foil ? `${c.name}: solo foil` : `${c.name}: foil o normal`);
 }
 
 function skeletons(n) {
@@ -188,6 +211,7 @@ function render() {
   document.documentElement.dataset.theme = S.theme;
   $("#btnTheme use").setAttribute("href", S.theme === "dark" ? "#i-sun" : "#i-moon");
   document.body.classList.toggle("no-sidebar", !S.sidebar);
+  document.body.classList.toggle("sin-foil", !S.opt.foil);
   $$(".nav-item").forEach(b => b.classList.toggle("active", b.dataset.view === S.view));
   $("#countList").textContent = S.list.length;
   $("#countShops").textContent = S.shops.length;
@@ -224,7 +248,8 @@ function render() {
         <button class="btn" data-paste><svg class="ic"><use href="#i-clipboard"/></svg>Pegar lista</button>
         ${found ? `<button class="btn" data-go="results"><svg class="ic"><use href="#i-table"/></svg>Ver resultados</button><button class="btn" id="btnExport"><svg class="ic"><use href="#i-download"/></svg>Exportar CSV</button>` : ""}
         <label class="check" title="Vuelve a consultar aunque haya datos de hace menos de 6 horas"><input type="checkbox" id="fresh">Ignorar caché</label>
-        <button class="btn primary" id="btnShopSearch" ${running ? "disabled" : ""}><svg class="ic"><use href="#i-radar"/></svg>Buscar en ${S.shops.length || "mis"} tienda${S.shops.length === 1 ? "" : "s"}</button>
+        <span class="sel-actions"><button class="btn sm ghost" data-selall="1">Marcar todas</button><button class="btn sm ghost" data-selall="0">Ninguna</button></span>
+        <button class="btn primary" id="btnShopSearch" ${running ? "disabled" : ""}><svg class="ic"><use href="#i-radar"/></svg><span id="shopSearchLabel">${textoBuscar()}</span></button>
       </div>`
       + sorted.map((c, i) => cardHTML(c, i)).join("");
     wireImages(results);
@@ -232,16 +257,11 @@ function render() {
   }
 
   title.textContent = "Explorar";
-  count.textContent = S.loading && !S.results.length ? "Buscando…" : S.total ? `${S.total.toLocaleString("es-ES")} resultado${S.total > 1 ? "s" : ""}` : "";
+  count.textContent = S.loading && !S.results.length ? "Buscando…" : !buildQuery() ? "Novedades: las cartas más recientes" : S.total ? `${S.total.toLocaleString("es-ES")} resultado${S.total > 1 ? "s" : ""}` : "";
   if (S.loading && !S.results.length) { results.innerHTML = skeletons(18); return; }
   if (S.error) {
     results.innerHTML = empty("wifi-off", "No hay conexión con Scryfall", "Comprueba tu conexión a internet. Tus listas y tiendas siguen guardadas.",
       `<div class="suggestions"><button class="btn primary" data-retry>Reintentar</button></div>`);
-    return;
-  }
-  if (!buildQuery()) {
-    results.innerHTML = empty("radar", "Encuentra cartas en tus tiendas", "Busca una carta o combina filtros. Añádelas a tu lista y Rastro te dirá qué tiendas las tienen.",
-      `<div class="suggestions">${["Lightning Bolt", "Sol Ring", "Counterspell", "t:dragon r:mythic"].map(s => `<button class="btn" data-try="${esc(s)}">${esc(s)}</button>`).join("")}</div>`);
     return;
   }
   if (!S.results.length) {
@@ -530,11 +550,20 @@ const generalFilters = () => {
   return o;
 };
 
+// Si hay cartas marcadas en Mi lista, se buscan solo esas; si no, todas
+const aBuscar = () => S.sel.size ? S.list.filter(c => S.sel.has(c.id)) : S.list;
+const textoBuscar = () => `Buscar ${S.sel.size ? `${S.sel.size} marcada${S.sel.size > 1 ? "s" : ""}` : "todas"} en ${S.shops.length || "mis"} tienda${S.shops.length === 1 ? "" : "s"}`;
+function marcar(id, on) {
+  if (on) S.sel.add(id); else S.sel.delete(id);
+  if ($("#shopSearchLabel")) $("#shopSearchLabel").textContent = textoBuscar();
+}
+
 async function startShopSearch() {
   if (!bridge()) return toast("La búsqueda en tiendas solo funciona dentro de la app");
   if (!S.shops.length) { goView("shops"); return toast("Añade primero alguna tienda"); }
-  const ids = S.list.map(c => c.id);
-  S.offers = Object.fromEntries(ids.map(id => [id, {}]));
+  const cartas = aBuscar();
+  const ids = cartas.map(c => c.id);
+  for (const id of ids) S.offers[id] = {};   // las no marcadas conservan sus ofertas anteriores
   S.missing = [];
   S.run = {
     ids: new Set(ids), finished: false, errors: [], captcha: false, wait: 0,
@@ -542,7 +571,7 @@ async function startShopSearch() {
   };
   render(); renderRun();
   const fresh = $("#fresh")?.checked;
-  const ok = await bridge().buscar_tiendas(S.list.map(c => ({ id: c.id, nombre: c.name, filtros: cardFilters(c) })), S.shops, generalFilters(), !!fresh,
+  const ok = await bridge().buscar_tiendas(cartas.map(c => ({ id: c.id, nombre: c.name, filtros: cardFilters(c) })), S.shops, generalFilters(), !!fresh,
     { pausa: S.opt.pausa, espera_extension: S.opt.espera, cache_horas: S.opt.cache, ocultar: !S.opt.ver });
   if (!ok) { S.run = null; toast("Ya hay una búsqueda en marcha"); render(); renderRun(); }
 }
@@ -775,7 +804,7 @@ function renderDetail() {
       ${multiImg ? `<button class="icon-btn" id="dFlip" title="Girar carta"><svg class="ic"><use href="#i-flip"/></svg></button>` : ""}
       <button class="icon-btn" id="dClose" title="Cerrar (Esc)"><svg class="ic"><use href="#i-x"/></svg></button>
     </div>
-    <div class="detail-img skel"><img alt="${esc(c.name)}" src="${esc(img(c, "large", S.face))}"></div>
+    <div class="detail-img skel${verFoil(listItem(c.id) || c) ? " foil" : ""}"><img alt="${esc(c.name)}" src="${esc(img(c, "large", S.face))}">${soloFoil(c) ? `<span class="foil-badge">Solo foil</span>` : ""}</div>
     <div class="d-title"><h2>${esc(c.name)}</h2>${c.card_faces ? "" : cost(c.mana_cost)}</div>
     <div class="d-type">${esc(c.type_line)}</div>
     <div class="d-text">${text}</div>
@@ -880,7 +909,7 @@ function swapArt(id) {
 function toggleList(id) {
   const c = S.results.find(x => x.id === id) || S.list.find(x => x.id === id) || (S.selected?.id === id && S.selected);
   if (!c) return;
-  if (inList(id)) { S.list = S.list.filter(x => x.id !== id); toast(`Quitada: ${c.name}`); }
+  if (inList(id)) { S.list = S.list.filter(x => x.id !== id); S.sel.delete(id); toast(`Quitada: ${c.name}`); }
   else { S.list.push(c); toast(`Añadida a tu lista: ${c.name}`); }
   save();
   $$(`[data-add="${id}"]`).forEach(b => {
@@ -1004,7 +1033,8 @@ document.addEventListener("change", e => {
   const v = el.type === "checkbox" ? el.checked : el.dataset.cf === "qty" ? Math.max(1, parseInt(el.value, 10) || 1) : el.value.trim().replace(",", ".");
   c._f = { ...c._f, [el.dataset.cf]: v };
   save();
-  if (el.dataset.cf === "qty" && S.view === "list") render();
+  if ((el.dataset.cf === "qty" || el.dataset.cf === "foil") && S.view === "list") render();
+  if (el.dataset.cf === "foil") renderDetail();
 });
 
 // Orden y vista
@@ -1020,6 +1050,11 @@ document.addEventListener("click", e => {
   const t = e.target;
   const add = t.closest("[data-add]");
   if (add) { e.stopPropagation(); toggleList(add.dataset.add); return; }
+  const fb = t.closest("[data-foilsel]");
+  if (fb) { e.stopPropagation(); toggleFoil(fb.dataset.foilsel); return; }
+  if (t.closest(".sel-box")) { if (t.dataset.sel) marcar(t.dataset.sel, t.checked); return; }
+  const sa = t.closest("[data-selall]");
+  if (sa) { S.list.forEach(c => marcar(c.id, sa.dataset.selall === "1")); $$("[data-sel]").forEach(b => { b.checked = sa.dataset.selall === "1"; }); return; }
   const chip = t.closest("[data-chip]");
   if (chip) { chipActions[+chip.dataset.chip]?.off(); filterChanged(); return; }
   if (t.closest("[data-clear]")) { clearFilters(); return; }
@@ -1110,6 +1145,7 @@ const OPT_CAMPOS = { pausa: ["#optPausa", 1.5, 30], espera: ["#optEspera", 10, 1
 function showOptions() {
   for (const [k, [sel]] of Object.entries(OPT_CAMPOS)) $(sel).value = S.opt[k];
   $("#optVer").checked = S.opt.ver;
+  $("#optFoil").checked = S.opt.foil;
 }
 for (const [k, [sel, min, max]] of Object.entries(OPT_CAMPOS)) {
   $(sel).onchange = e => {
@@ -1119,10 +1155,24 @@ for (const [k, [sel, min, max]] of Object.entries(OPT_CAMPOS)) {
   };
 }
 $("#optVer").onchange = e => { S.opt.ver = e.target.checked; save(); };
-$("#optReset").onclick = () => { S.opt = { ...OPT_DEF }; save(); showOptions(); };
+$("#optFoil").onchange = e => { S.opt.foil = e.target.checked; save(); render(); };
+$("#optReset").onclick = () => { S.opt = { ...OPT_DEF }; save(); showOptions(); render(); };
 $("#optClear").onclick = async () => {
   if (!bridge()) return;
   toast(await bridge().vaciar_cache() ? "Caché vaciada" : "Espera a que termine la búsqueda");
+};
+$("#optUpdate").onclick = async e => {
+  if (!bridge()) return;
+  const b = e.currentTarget; b.disabled = true; b.textContent = "Buscando…";
+  let r = null;
+  try { r = await bridge().comprobar_actualizacion(); } catch { }
+  b.disabled = false; b.textContent = "Buscar actualización";
+  toast({
+    al_dia: "Tienes la última versión",
+    actualizando: `Hay una versión nueva (${r?.version}): se instalará y Rastro se reiniciará`,
+    ocupado: `Hay una versión nueva (${r?.version}): se instalará cuando termine la búsqueda y vuelvas a abrir Rastro`,
+    fuente: "Las actualizaciones solo funcionan en Rastro.exe",
+  }[r?.estado] || "No se pudo comprobar. Revisa tu conexión e inténtalo de nuevo");
 };
 $("#optSetup").onclick = () => { $("#optDlg").close(); openSetup(); };
 $("#btnOptions").onclick = async () => {
@@ -1140,6 +1190,7 @@ async function init() {
   showNav();
   syncOfferUI();
   render();
+  search(); // Explorar arranca con las novedades
   if (!S.setup && bridge()) openSetup();
   try {
     const d = await scry(`${API}/sets`);

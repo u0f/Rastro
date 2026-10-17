@@ -45,7 +45,7 @@ Si cambias la extensión, sube su `version` en `extension/manifest.json`. Rastro
 | `ui/theme.css` | Único archivo de tema: colores (oscuro y claro), fuentes, espaciado, radios y sombras. |
 | `ui/app.css` | Componentes y layout. |
 | `ui/index.html` | Estructura e iconos. |
-| `ui/mazos.js` | Mazos: formatos, lectura de listas con secciones, legalidad, curva, bracket y compra de lo que falta. Usa las utilidades de `app.js`. |
+| `ui/mazos.js` | Mazos: formatos, lectura de listas con secciones, legalidad, curva, bracket, combos (Commander Spellbook `find-my-combos`, pedido desde `app.py` por CORS) y compra de lo que falta. Usa las utilidades de `app.js`. |
 | `ui/app.js` | Interfaz: Scryfall (búsqueda, autocompletado y `/cards/collection` para listas pegadas), Mi lista, progreso, Resultados, Tiendas y detalle. |
 
 **Añadir otro sitio**: crea `busqueda/tiendas/otrositio.py` con una clase como `Cardmarket` (`sitio`, `dominio`, `pestanas`, `intervalo`, `enlace()`, `buscar()`) y regístrala en `busqueda/tiendas/__init__.py`. Añade también su lector en `extension/content.js` y su dominio en `extension/manifest.json`. En la lista de tiendas se escribe como `otrositio:usuario`. Las que no llevan prefijo son de Cardmarket.

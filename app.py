@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import threading
 import urllib.request
 from pathlib import Path
@@ -151,8 +152,25 @@ class Api:
                 texto += [titulo, *lineas, ""]
         return {"nombre": d.get("name", ""), "formato": d.get("format", ""), "texto": "\n".join(texto)}
 
+    def buscar_combos(self, cuerpo):
+        """Combos de Commander Spellbook para un mazo ({commanders: [{card}], main: [{card}]}).
+        Desde aquí porque su API no acepta peticiones desde la interfaz (CORS)."""
+        req = urllib.request.Request("https://backend.commanderspellbook.com/find-my-combos",
+                                     data=json.dumps(cuerpo).encode(), method="POST",
+                                     headers={"Content-Type": "application/json", "Accept": "application/json",
+                                              "User-Agent": "Rastro"})
+        try:
+            with urllib.request.urlopen(req, timeout=40) as r:
+                return json.load(r)["results"]
+        except (OSError, ValueError):
+            return None
+
     def version(self):
         return actualizar.VERSION
+
+    def comprobar_actualizacion(self):
+        """Botón de Opciones: busca ya una versión nueva y, si la hay, la instala y reinicia."""
+        return comprobar_actualizacion(self)
 
     def vaciar_cache(self):
         if self._control:
@@ -173,19 +191,31 @@ class Api:
 
 
 def comprobar_actualizacion(api):
-    """Al arrancar: si hay una Release nueva en GitHub, se instala y Rastro se reinicia solo."""
+    """Al arrancar (y desde Opciones): si hay una Release nueva en GitHub, se instala y Rastro se reinicia solo.
+    Devuelve el resultado para Opciones: fuente, error, al_dia, ocupado o actualizando."""
     actualizar.limpiar()
-    hay = actualizar.buscar()
-    if not hay or api._control:  # nunca en mitad de una búsqueda
-        return
-    version, url = hay
-    a_js("actualizando", version=version)
+    if not getattr(sys, "frozen", False):
+        return {"estado": "fuente"}
     try:
-        actualizar.instalar(url)
+        hay = actualizar.buscar()
     except OSError:
-        a_js("actualizando", version=version, error=True)
-        return
-    ventana.destroy()
+        return {"estado": "error"}
+    if not hay:
+        return {"estado": "al_dia"}
+    version, url = hay
+    if api._control:  # nunca en mitad de una búsqueda
+        return {"estado": "ocupado", "version": version}
+
+    def instalar():
+        a_js("actualizando", version=version)
+        try:
+            actualizar.instalar(url)
+        except OSError:
+            a_js("actualizando", version=version, error=True)
+            return
+        ventana.destroy()
+    threading.Thread(target=instalar, daemon=True).start()
+    return {"estado": "actualizando", "version": version}
 
 
 if __name__ == "__main__":

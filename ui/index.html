@@ -295,6 +295,17 @@
     </footer>
   </form>
 </dialog>
+<dialog class="modal art-dlg" id="artDlg">
+  <form method="dialog" class="modal-body">
+    <header class="modal-head">
+      <h2 id="artTitle">Arte</h2>
+      <button class="icon-btn" value="cancel" formnovalidate title="Cerrar"><svg class="ic"><use href="#i-x"/></svg></button>
+    </header>
+    <p class="modal-note">Elige la edición. Se conservan las copias, la zona y si la tienes; el precio pasa a ser el de esa edición.</p>
+    <label class="check"><input type="checkbox" id="artFoil">Versión foil (las ediciones que solo existen en foil lo son siempre)</label>
+    <div class="art-grid" id="artGrid"></div>
+  </form>
+</dialog>
 <dialog class="modal" id="optDlg">
   <form method="dialog" class="modal-body" id="optForm">
     <header class="modal-head">
@@ -311,6 +322,11 @@
         <input type="checkbox" class="opt-check" id="optVer"></label>
     </section>
     <section class="opt-group">
+      <h3>Apariencia</h3>
+      <label class="opt"><span>Efecto foil<small>Brillo en las cartas que solo existen en foil, las que marcas foil en un mazo y las que pides "Solo foil" en Mi lista.</small></span>
+        <input type="checkbox" class="opt-check" id="optFoil"></label>
+    </section>
+    <section class="opt-group">
       <h3>Caché</h3>
       <label class="opt"><span>Recordar páginas leídas<small>Lo consultado en este tiempo no se vuelve a pedir. 0 = siempre datos frescos.</small></span>
         <span class="opt-num"><input class="field" id="optCache" type="number" min="0" max="72" step="1"> h</span></label>
@@ -323,7 +339,7 @@
         <button type="button" class="btn sm" id="optSetup">Abrir</button></div>
     </section>
     <footer class="modal-foot">
-      <span class="opt-version"><span id="optVersion"></span><button type="button" class="btn sm ghost" id="optReset">Valores por defecto</button></span>
+      <span class="opt-version"><span id="optVersion"></span><button type="button" class="btn sm" id="optUpdate">Buscar actualización</button><button type="button" class="btn sm ghost" id="optReset">Valores por defecto</button></span>
       <button class="btn primary" value="default">Hecho</button>
     </footer>
   </form>

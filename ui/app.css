@@ -712,7 +712,7 @@ body:not(.detail-open) .detail { border-left-color: transparent; }
 .deck-group h3 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 4px; padding: 0 4px; font-size: var(--fs-sm); font-weight: 650; color: var(--text-2); }
 .deck-group h3 span { color: var(--text-3); font-weight: 500; font-variant-numeric: tabular-nums; }
 .deck-group h3 .deck-sub { margin-left: auto; }
-.deck-row { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto 70px auto auto; align-items: center; gap: 10px; padding: 4px 6px; border-radius: var(--r-sm); font-size: var(--fs-md); }
+.deck-row { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto 70px auto auto auto; align-items: center; gap: 10px; padding: 4px 6px; border-radius: var(--r-sm); font-size: var(--fs-md); }
 .deck-row:hover { background: var(--surface-2); }
 .deck-row.have .deck-cname { color: var(--text-3); }
 .deck-row.bad .deck-cname { color: var(--bad); }
@@ -757,3 +757,69 @@ body:not(.detail-open) .detail { border-left-color: transparent; }
 .deck-dlg-field[hidden] { display: none; }
 .opt-version { display: flex; align-items: center; gap: var(--s-2); color: var(--text-3); font-size: var(--fs-xs); }
 .update-banner { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 100; padding: 12px 18px; border-radius: var(--r-lg); background: var(--surface-3); border: 1px solid var(--accent); color: var(--text); font-size: var(--fs-sm); box-shadow: var(--shadow-lg); }
+.combo { border-top: 1px solid var(--border); padding: 6px 0; }
+.combo summary { cursor: pointer; display: grid; gap: 2px; list-style: none; }
+.combo summary::-webkit-details-marker { display: none; }
+.combo-cards { display: flex; flex-wrap: wrap; gap: 4px; }
+.combo-cards b { font-weight: 550; padding: 1px 6px; border-radius: var(--r-sm); background: var(--surface-2); color: var(--text); }
+.combo-cards b.falta { background: transparent; border: 1px dashed var(--warn); color: var(--warn); }
+.combo-res { color: var(--ok); font-size: var(--fs-xs); }
+.combo p, .combo ol { margin: 6px 0 0; color: var(--text-2); }
+.combo ol { padding-left: 18px; display: grid; gap: 3px; }
+.combo .muted { color: var(--text-3); font-size: var(--fs-xs); }
+.combo a { display: inline-block; margin-top: 6px; color: var(--accent); font-size: var(--fs-xs); }
+.combo-sub { margin: 10px 0 2px; font-size: var(--fs-xs); font-weight: 650; color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; }
+.deck-note.warn { color: var(--warn); }
+
+/* ---------- Marcar cartas de Mi lista para buscar ---------- */
+.sel-box { position: absolute; top: 8px; left: 8px; z-index: 2; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; background: rgba(10, 12, 18, .72); backdrop-filter: blur(6px); cursor: pointer; }
+.sel-box input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.results.rows .sel-box { top: 50%; left: 4px; transform: translateY(-50%); width: 24px; height: 24px; }
+.sel-actions { display: inline-flex; gap: 2px; }
+
+/* ---------- Elegir arte de una carta del mazo ---------- */
+.art-dlg { width: min(860px, calc(100vw - 32px)); }
+.art-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: var(--s-2); max-height: 62vh; overflow: auto; padding: 2px; }
+.art-opt { display: grid; gap: 4px; padding: 4px; border-radius: var(--r-md); border: 2px solid transparent; background: none; color: var(--text-2); cursor: pointer; text-align: left; }
+.art-opt:hover { background: var(--surface-2); }
+.art-opt.on { border-color: var(--accent); }
+.art-opt > span { aspect-ratio: 488 / 680; border-radius: 4.5% / 3.5%; overflow: hidden; background: var(--surface-3); }
+.art-opt img { width: 100%; height: 100%; display: block; }
+.art-opt small { font-size: var(--fs-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- Brillo foil ---------- */
+/* Dos capas sobre la imagen: un arcoíris suave en bandas diagonales (soft-light, no quema los oscuros)
+   y un reflejo de luz que la cruza despacio (screen, ilumina sin tapar). Se ve siempre; Opciones → Efecto foil lo apaga. */
+.foil { position: relative; overflow: hidden; isolation: isolate; }
+.foil img { filter: saturate(1.2) contrast(1.05) brightness(1.06); }
+.foil::before, .foil::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; z-index: 1; }
+.foil::before {
+  background: repeating-linear-gradient(118deg,
+    hsl(330 90% 75%) 0%, hsl(45 95% 72%) 7%, hsl(150 80% 70%) 14%, hsl(200 90% 72%) 21%, hsl(270 85% 76%) 28%, hsl(330 90% 75%) 35%);
+  background-size: 260% 260%;
+  mix-blend-mode: soft-light; opacity: .85;
+  animation: foil-arcoiris 9s ease-in-out infinite alternate;
+}
+.foil::after {
+  background: linear-gradient(118deg, transparent 33%, rgba(255, 255, 255, .12) 41%, rgba(255, 250, 235, .5) 47%, rgba(220, 240, 255, .2) 53%, transparent 62%);
+  background-size: 300% 300%; background-repeat: no-repeat; /* sin repetir: nunca asoma el borde de otra copia */
+  mix-blend-mode: screen; opacity: 1;
+  animation: foil-reflejo 6s linear infinite;
+}
+@keyframes foil-arcoiris { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
+/* El reflejo empieza y acaba fuera de la carta (transparente), así el salto al reiniciar no se ve */
+@keyframes foil-reflejo { 0% { background-position: 100% 100%; } 60%, 100% { background-position: 0% 0%; } }
+@media (prefers-reduced-motion: reduce) { .foil::before, .foil::after { animation: none; background-position: 50% 50%; } }
+.sin-foil .foil::before, .sin-foil .foil::after { display: none; }
+.sin-foil .foil img { filter: none; }
+.foil-badge { position: absolute; left: 10px; bottom: 10px; z-index: 2; padding: 2px 8px; border-radius: var(--r-pill); font-size: var(--fs-xs); font-weight: 650; color: #1a1408;
+  background: linear-gradient(90deg, #ffd2f0, #fff1b8, #c8ffe9, #c6e4ff, #e7d0ff); }
+.deck-preview-wrap { display: block; border-radius: 4.5% / 3.5%; overflow: hidden; box-shadow: var(--shadow-lg); }
+.deck-preview-wrap .deck-preview { display: block; box-shadow: none; }
+.foil-tag { margin-left: 4px; padding: 0 6px; border-radius: var(--r-pill); font-size: 10.5px; font-weight: 700; color: #1a1408; background: linear-gradient(90deg, #ffd2f0, #fff1b8, #c8ffe9, #c6e4ff, #e7d0ff); vertical-align: 1px; }
+.foil-btn { margin-left: 6px; padding: 0 7px; height: 18px; border-radius: var(--r-pill); border: 1px dashed var(--border-strong); background: none; color: var(--text-3); font: 650 10.5px/16px var(--font); cursor: pointer; vertical-align: 1px; }
+.foil-btn:hover { color: var(--text); border-color: var(--text-3); }
+.foil-btn.on { border: 0; color: #1a1408; background: linear-gradient(90deg, #ffd2f0, #fff1b8, #c8ffe9, #c6e4ff, #e7d0ff); line-height: 18px; }
+.card .name { display: flex; align-items: center; }
+.card .name .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.card .name .qty, .card .name .foil-btn, .card .name .foil-tag { flex: none; }
