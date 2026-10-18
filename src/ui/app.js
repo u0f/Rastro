@@ -25,6 +25,7 @@ const S = {
   list: [], shops: [], theme: "dark", sidebar: true,
   of: { lang: [], cond: "", foil: "", max: "" },   // filtros de oferta generales
   offers: {}, missing: [], searchedAt: null,         // resultados de la última búsqueda en tiendas
+  stock: {},                                          // artículos a la venta de cada tienda (de la última búsqueda)
   run: null,                                          // búsqueda en marcha
   setup: false,                                       // primeros pasos completados
   opt: { ...OPT_DEF },                                // ventana Opciones
@@ -43,7 +44,7 @@ async function loadState() {
     const d = typeof raw === "string" ? JSON.parse(raw) : raw;
     Object.assign(S, {
       list: d.list || [], shops: d.shops || [], theme: d.theme || "dark", layout: d.layout || "grid", sidebar: d.sidebar ?? true,
-      of: { ...S.of, ...d.of }, offers: d.offers || {}, missing: d.missing || [], searchedAt: d.searchedAt || null,
+      of: { ...S.of, ...d.of }, offers: d.offers || {}, missing: d.missing || [], searchedAt: d.searchedAt || null, stock: d.stock || {},
       setup: !!d.setup, opt: { ...OPT_DEF, ...d.opt }, decks: d.decks || [], deck: d.deck || null,
     });
     // Búsquedas antiguas guardaban ofertas sin precio (no comprables): fuera
@@ -53,7 +54,7 @@ async function loadState() {
 const save = debounce(() => {
   const d = JSON.stringify({
     list: S.list, shops: S.shops, theme: S.theme, layout: S.layout, sidebar: S.sidebar,
-    of: S.of, offers: S.offers, missing: S.missing, searchedAt: S.searchedAt, setup: S.setup, opt: S.opt, decks: S.decks, deck: S.deck,
+    of: S.of, offers: S.offers, missing: S.missing, searchedAt: S.searchedAt, stock: S.stock, setup: S.setup, opt: S.opt, decks: S.decks, deck: S.deck,
   });
   try { bridge() ? bridge().guardar_estado(d) : localStorage.setItem("rastro", d); } catch { }
 }, 300);
@@ -359,7 +360,7 @@ function renderShops() {
       return r.length ? `<span>${esc(c.name)}<b>${fmtEur(r[0].precio_num)}</b></span>` : `<span class="no">${esc(c.name)}</span>`;
     }).join("")}</div>` : "";
     return `<div class="shop-row${missing ? " missing" : ""}"><span class="avatar">${esc(s[0])}</span>
-      <span class="grow">${esc(s)} ${s === best ? `<span class="best">Más completa</span>` : ""}</span>${info}
+      <span class="grow">${esc(s)} ${s === best ? `<span class="best">Más completa</span>` : ""}${!missing && S.stock[s] != null ? `<small class="shop-listed">${typeof S.stock[s] === "number" ? S.stock[s].toLocaleString("es-ES") : esc(S.stock[s])} cartas a la venta</small>` : ""}</span>${info}
       <a class="link" href="${shopUrl(s)}" target="_blank"><svg class="ic"><use href="#i-external"/></svg>Ver</a>
       <button class="icon-btn sm" data-rmshop="${esc(s)}" title="Quitar"><svg class="ic"><use href="#i-trash"/></svg></button>${cards}</div>`;
   };
@@ -583,7 +584,10 @@ const rerenderSoon = debounce(() => { if (S.view === "results") renderResults();
 window.onMotor = ev => {
   const r = S.run, st = r && ev.tienda ? r.shops[ev.tienda] : null;
   switch (ev.tipo) {
-    case "plan": if (st) Object.assign(st, { modo: ev.modo, total: ev.total, stock: ev.stock }); break;
+    case "plan":
+      S.stock[ev.tienda] = ev.stock;
+      if (st) Object.assign(st, { modo: ev.modo, total: ev.total, stock: ev.stock });
+      break;
     case "progreso": if (st) Object.assign(st, { hecho: ev.hecho, total: ev.total }); break;
     case "resultado":
       ev.filas.forEach(f => { f.enlace = ev.enlace; });
@@ -1181,7 +1185,11 @@ $("#optFoil").onchange = e => { S.opt.foil = e.target.checked; save(); render();
 $("#optReset").onclick = () => { S.opt = { ...OPT_DEF }; save(); showOptions(); render(); };
 $("#optClear").onclick = async () => {
   if (!bridge()) return;
-  toast(await bridge().vaciar_cache() ? "Caché vaciada" : "Espera a que termine la búsqueda");
+  if (!await bridge().vaciar_cache()) return toast("No se pudo vaciar: espera a que termine la búsqueda o cierra la otra ventana de Rastro");
+  // También los resultados guardados, para que la próxima búsqueda parta de cero
+  Object.assign(S, { offers: {}, missing: [], searchedAt: null, stock: {} });
+  save(); render();
+  toast("Caché y resultados borrados");
 };
 $("#optUpdate").onclick = async e => {
   if (!bridge()) return;

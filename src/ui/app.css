@@ -491,6 +491,7 @@ body:not(.detail-open) .detail { border-left-color: transparent; }
 .shop-row { flex-wrap: wrap; }
 .shop-row .shop-stats { color: var(--text-3); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
 .shop-row .shop-stats b { color: var(--text); }
+.shop-row .shop-listed { display: block; color: var(--text-3); font-size: var(--fs-sm); font-weight: 400; font-variant-numeric: tabular-nums; }
 .shop-row.missing .avatar { color: var(--bad); }
 .shop-row .shop-cards { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0 2px 44px; }
 .shop-row .shop-cards span { font-size: var(--fs-sm); padding: 3px 10px; border-radius: var(--r-pill); background: var(--surface-2); border: 1px solid var(--border); }

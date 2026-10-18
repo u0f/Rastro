@@ -30,8 +30,9 @@ def precio_num(p):
 
 
 def cara(nombre):
-    """Cardmarket y Scryfall nombran las cartas dobles 'A // B'; se compara la cara frontal."""
-    return nombre.split(" // ")[0].strip().lower()
+    """Cardmarket y Scryfall nombran las cartas dobles 'A // B'; se compara la cara frontal.
+    Cardmarket marca las versiones alternativas con ' (V.2)', que Scryfall no lleva."""
+    return re.sub(r"\s*\(V\.\d+\)$", "", nombre.split(" // ")[0].strip()).lower()
 
 
 def lista_idiomas(f):
@@ -131,7 +132,12 @@ class Cardmarket:
             total = primera["paginas"] + len({k for k, cs in consultas.items() if any(c in propias for c in cs)})
         else:
             total = len(consultas)
-        emitir("plan", modo="inventario" if inventario else "carta", total=total, stock=primera["hits"])
+        # Con más de 2000 artículos las ofertas solo dicen "2000+"; el número exacto está en el perfil
+        stock = primera["hits"]
+        if stock is None:
+            perfil = await nav.leer(f"{BASE}/en/{JUEGO}/Users/{tienda}", dom)
+            stock = perfil.get("singles") or f"{primera['paginas'] * 20}+"
+        emitir("plan", modo="inventario" if inventario else "carta", total=total, stock=stock)
 
         def avanzar(n=1):
             nonlocal hecho

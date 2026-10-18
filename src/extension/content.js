@@ -34,6 +34,8 @@
       url_final: location.origin + location.pathname + location.search,
       paginas: +((document.querySelector(".pagination")?.textContent.match(/of\s+(\d+)/) || [])[1] || 1),
       hits: +(document.querySelector(".total-count")?.textContent || 0),
+      // En el perfil: total exacto de cartas a la venta (en las ofertas solo pone "2000+")
+      singles: +(document.querySelector('a[href$="/Offers/Singles"] .bracketed')?.textContent.replace(/\D/g, "") || 0) || null,
       filas: [...document.querySelectorAll("#UserOffersTable .article-row")].map(r => {
         const attrs = r.querySelector(".product-attributes");
         const labels = attrs ? [...attrs.querySelectorAll("[aria-label],[data-bs-original-title]")]

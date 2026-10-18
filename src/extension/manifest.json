@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Rastro – lector de Cardmarket",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Lee el stock de las tiendas de Cardmarket que abre Rastro y se lo pasa a la app de tu PC. Solo actúa en pestañas abiertas por Rastro.",
   "icons": { "16": "iconos/16.png", "32": "iconos/32.png", "48": "iconos/48.png", "128": "iconos/128.png" },
   "permissions": ["storage"],

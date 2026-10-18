@@ -179,7 +179,10 @@ class Api:
     def vaciar_cache(self):
         if self._control:
             return False
-        (DATOS / "cache.sqlite").unlink(missing_ok=True)
+        try:
+            (DATOS / "cache.sqlite").unlink(missing_ok=True)
+        except OSError:  # otra copia de Rastro la tiene abierta
+            return False
         return True
 
     def exportar_csv(self, filas):
