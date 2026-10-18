@@ -193,6 +193,21 @@ class Api:
             csv.writer(fh, delimiter=";").writerows(filas)
         return True
 
+    def exportar_tiendas(self, tiendas):
+        """Guarda la lista de tiendas como texto, una por línea."""
+        ruta = ventana.create_file_dialog(webview.FileDialog.SAVE, save_filename="tiendas_rastro.txt",
+                                          file_types=("Texto (*.txt)",))
+        if not ruta:
+            return False
+        ruta = ruta[0] if isinstance(ruta, (list, tuple)) else ruta
+        Path(ruta).write_text("\n".join(tiendas) + "\n", encoding="utf-8")
+        return True
+
+    def importar_tiendas(self):
+        """Texto de un archivo elegido por el usuario, o None si cancela."""
+        ruta = ventana.create_file_dialog(webview.FileDialog.OPEN, file_types=("Texto (*.txt;*.csv)", "Todos (*.*)"))
+        return Path(ruta[0]).read_text(encoding="utf-8-sig", errors="replace") if ruta else None
+
 
 def comprobar_actualizacion(api):
     """Al arrancar (y desde Opciones): si hay una Release nueva en GitHub, se instala y Rastro se reinicia solo.

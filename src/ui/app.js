@@ -366,7 +366,9 @@ function renderShops() {
   results.className = "results";
   results.innerHTML = `<div class="shops">
     <p style="margin:0;color:var(--text-2)">Usuarios de Cardmarket en los que buscar las cartas de tu lista. Tras buscar, se ordenan por cuántas cartas tienen y por el coste total más barato.</p>
-    <form class="shop-add" id="shopForm"><input class="field" id="shopInput" placeholder="Nombre de usuario o URL del perfil" autocomplete="off" value="${esc(typed)}"><button class="btn primary"><svg class="ic"><use href="#i-plus"/></svg>Añadir</button></form>
+    <form class="shop-add" id="shopForm"><input class="field" id="shopInput" placeholder="Nombre de usuario o URL del perfil" autocomplete="off" value="${esc(typed)}"><button class="btn primary"><svg class="ic"><use href="#i-plus"/></svg>Añadir</button>
+      <button type="button" class="btn" id="btnShopsImport" title="Añade tiendas desde un archivo de texto (una por línea)">Importar</button>
+      <button type="button" class="btn" id="btnShopsExport" title="Guarda tus tiendas en un archivo de texto"><svg class="ic"><use href="#i-download"/></svg>Exportar</button></form>
     <div class="shop-list">${shops.length ? shops.map(row).join("") : empty("store", "Sin tiendas", "Añade el nombre de usuario de una tienda de Cardmarket.")}</div></div>`;
 }
 
@@ -1075,18 +1077,38 @@ document.addEventListener("click", e => {
   const op = t.closest("[data-open]");
   if (op) { const c = listItem(op.dataset.open); if (c) openDetail(c); return; }
   if (t.closest("#btnExport")) { exportCSV(); return; }
+  if (t.closest("#btnShopsExport")) { exportShops(); return; }
+  if (t.closest("#btnShopsImport")) { importShops(); return; }
   const card = t.closest(".card:not(.skeleton)");
   if (card) {
     const c = S.results.find(x => x.id === card.dataset.id) || S.list.find(x => x.id === card.dataset.id);
     if (c) S.selected?.id === c.id ? closeDetail() : openDetail(c);
   }
 });
+// Nombre de usuario a partir de lo escrito (nombre o URL del perfil); true si era nueva
+function addShop(text) {
+  const v = text.trim().replace(/\/+$/, "").split("/").pop();
+  if (!v || S.shops.some(s => s.toLowerCase() === v.toLowerCase())) return false;
+  S.shops.push(v); return true;
+}
 document.addEventListener("submit", e => {
   if (e.target.id !== "shopForm") return;
   e.preventDefault();
-  const v = $("#shopInput").value.trim().replace(/\/+$/, "").split("/").pop();
-  if (v && !S.shops.some(s => s.toLowerCase() === v.toLowerCase())) { S.shops.push(v); save(); render(); $("#shopInput").focus(); }
+  if (addShop($("#shopInput").value)) { save(); render(); $("#shopInput").focus(); }
 });
+async function exportShops() {
+  if (!S.shops.length) return toast("No hay tiendas que exportar");
+  if (!bridge()) return toast("Exportar solo funciona dentro de la app");
+  if (await bridge().exportar_tiendas(S.shops)) toast("Tiendas guardadas");
+}
+async function importShops() {
+  if (!bridge()) return toast("Importar solo funciona dentro de la app");
+  const text = await bridge().importar_tiendas().catch(() => null);
+  if (text == null) return;
+  const n = text.split(/[\r\n,;]+/).filter(addShop).length;
+  if (n) { save(); render(); }
+  toast(n ? `${n} tienda${n > 1 ? "s" : ""} añadida${n > 1 ? "s" : ""}` : "No había tiendas nuevas");
+}
 
 $("#pasteForm").addEventListener("submit", e => {
   if (e.submitter?.value === "cancel") return;
