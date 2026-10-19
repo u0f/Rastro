@@ -219,8 +219,6 @@ function render() {
   $("#countList").textContent = S.list.length;
   $("#countShops").textContent = S.shops.length;
   $("#countDecks").textContent = S.decks.length;
-  $("#navJudge").hidden = !S.opt.ia;
-  if (S.view === "judge" && !S.opt.ia) S.view = "explore";
   $("#filters").hidden = S.view !== "explore";
   $("#offerFilters").hidden = S.view === "explore" || S.view === "judge";
   $(".toolbar-right").style.visibility = S.view === "shops" || S.view === "decks" || S.view === "judge" ? "hidden" : "";

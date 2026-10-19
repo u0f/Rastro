@@ -21,6 +21,13 @@ async function comprobarNormas() {
 function renderJuez() {
   results.className = "results juez";
   $("#viewTitle").textContent = "Preguntar al juez";
+  if (!S.opt.ia) {
+    $("#resultCount").textContent = "Desactivado";
+    results.innerHTML = empty("gavel", "Preguntar al juez está desactivado",
+      "Resuelve dudas de reglas de Magic con las Comprehensive Rules oficiales y el texto y los rulings de las cartas, citando cada regla. Usa Claude Code instalado en este equipo: actívalo en Opciones → Inteligencia artificial.",
+      `<div class="suggestions"><button class="btn primary" data-juez-opciones><svg class="ic"><use href="#i-settings"/></svg>Abrir Opciones</button></div>`);
+    return;
+  }
   const n = S.reglas;
   $("#resultCount").textContent = n?.hay ? `Comprehensive Rules del ${n.fecha}` : n ? "Sin normas descargadas" : "";
   const sinNormas = n && !n.hay;
@@ -88,6 +95,7 @@ document.addEventListener("click", e => {
   if (S.view !== "judge") return;
   const t = e.target;
   let x;
+  if (t.closest("[data-juez-opciones]")) return $("#btnOptions").click();
   if ((x = t.closest("[data-juez-ejemplo]"))) return preguntarJuez(x.dataset.juezEjemplo);
   if ((x = t.closest("[data-juez-cita]"))) {
     const d = document.getElementById(`cita-${x.dataset.juezCita}`);
