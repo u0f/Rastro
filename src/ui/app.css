@@ -873,3 +873,6 @@ body:not(.detail-open) .detail { border-left-color: transparent; }
 .juez-conf.baja { color: var(--bad); }
 .juez-form { position: sticky; bottom: 0; display: grid; gap: 6px; padding: var(--s-2) 0; background: var(--bg); }
 .juez-acciones { display: flex; justify-content: space-between; gap: var(--s-2); }
+.field.esfuerzo { width: auto; height: 34px; padding-block: 0; padding-right: 28px; font-size: var(--fs-xs); }
+.juez-envio { display: flex; gap: 6px; align-items: center; }
+#iaEsfuerzo { margin-right: auto; }

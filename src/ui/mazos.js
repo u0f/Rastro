@@ -478,7 +478,7 @@ function abrirIA(tarea) {
   if (tarea !== "crear" && !d?.cards.length) return toast("El mazo está vacío");
   const [, titulo, nota, ayuda] = IA_TAREAS[tarea];
   IA = { tarea, r: null, ocupada: false };
-  $("#iaTitle").textContent = titulo; $("#iaNote").textContent = nota; $("#iaAviso").innerHTML = avisoIA();
+  $("#iaTitle").textContent = titulo; $("#iaNote").textContent = nota; $("#iaAviso").innerHTML = avisoIA(); $("#iaEsfuerzo").innerHTML = selectorEsfuerzo();
   $("#iaTexto").value = ""; $("#iaTexto").placeholder = ayuda;
   $("#iaFormato").innerHTML = Object.entries(FORMATOS_MAZO).map(([k, f]) => `<option value="${k}">${f.n}</option>`).join("");
   $("#iaFormatoL").hidden = tarea !== "crear";
@@ -510,7 +510,8 @@ async function pedirIA() {
   $("#iaOut").innerHTML = "";
   const llamar = async (...args) => {
     let x = null;
-    try { x = await bridge().ia_pedir(...args); } catch { }
+    const a = [...args]; a.length = 8; // los que falten van como null; el último es el esfuerzo
+    try { x = await bridge().ia_pedir(...a, S.opt.esfuerzo); } catch { }
     return x?.datos ? limpiarIA(x.datos) : { error: x?.error || "No se pudo hablar con Claude." };
   };
   // Contexto: los combos se consultan si no están al día (si falla, se sigue sin ellos)

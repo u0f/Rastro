@@ -14,7 +14,7 @@ const FORMATOS = { standard: "Standard", pioneer: "Pioneer", modern: "Modern", l
 const MODO_COLOR = { incl: "incluye", exact: "exacto", id: "identidad" };
 const PIP_COLOR = { W: "--mana-w", U: "--mana-u", B: "--mana-b", R: "--mana-r", G: "--mana-g", C: "--mana-c" };
 
-const OPT_DEF = { pausa: 1.5, espera: 20, cache: 6, ver: false, foil: true, ia: false };
+const OPT_DEF = { pausa: 1.5, espera: 20, cache: 6, ver: false, foil: true, ia: false, esfuerzo: "equilibrado" };
 const S = {
   view: "explore",
   q: "", exact: false,
@@ -1177,6 +1177,7 @@ function showOptions() {
   $("#optFoil").checked = S.opt.foil;
   $("#optIa").checked = S.opt.ia;
   pintarPruebaIA();
+  $("#optEsfuerzo").innerHTML = selectorEsfuerzo();
 }
 for (const [k, [sel, min, max]] of Object.entries(OPT_CAMPOS)) {
   $(sel).onchange = e => {
@@ -1208,6 +1209,15 @@ async function probarIA() {
   guardarPruebaIA(r || { ok: false, error: "No se pudo probar." });
 }
 // Aviso en todo lo que pide algo a la IA: puede equivocarse y gasta cuota (o crédito de la API)
+// Esfuerzo de la IA (ia.NIVELES): el mismo selector en Opciones, en las ventanas de IA de los mazos y en el juez
+const ESFUERZOS = { rapido: "Rápido · Haiku, gasta menos", equilibrado: "Equilibrado · Sonnet", maximo: "Máximo · Opus, gasta más" };
+const selectorEsfuerzo = () => `<select class="field esfuerzo" data-esfuerzo aria-label="Esfuerzo de la IA" title="Esfuerzo de la IA: más esfuerzo da mejores respuestas, pero tarda más y gasta más cuota">${
+  Object.entries(ESFUERZOS).map(([k, n]) => `<option value="${k}"${k === S.opt.esfuerzo ? " selected" : ""}>${n}</option>`).join("")}</select>`;
+document.addEventListener("change", e => {
+  if (!e.target.matches?.("[data-esfuerzo]")) return;
+  S.opt.esfuerzo = e.target.value; save();
+  $$("[data-esfuerzo]").forEach(s => { s.value = S.opt.esfuerzo; });
+});
 function avisoIA() {
   const uso = S.iaPrueba?.metodo === "api"
     ? "Cada petición gasta crédito de tu API de Anthropic: puedes consultarlo en console.anthropic.com."

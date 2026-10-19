@@ -20,6 +20,19 @@ from pathlib import Path
 MAC = sys.platform == "darwin"
 ESPERA = 300  # segundos
 
+# Niveles de esfuerzo que elige el usuario: (modelo, esfuerzo) para la respuesta y para los pasos de apoyo (el análisis
+# del juez). "rapido" usa el modelo barato pero pensando más, para que acierte lo máximo posible gastando poco.
+NIVELES = {
+    "rapido": {"principal": ("haiku", "high"), "apoyo": ("haiku", "low")},
+    "equilibrado": {"principal": ("sonnet", "medium"), "apoyo": ("haiku", "low")},
+    "maximo": {"principal": ("opus", "high"), "apoyo": ("haiku", "medium")},
+}
+
+
+def nivel(nombre, papel="principal"):
+    """(modelo, esfuerzo) de un nivel; uno desconocido cuenta como equilibrado."""
+    return NIVELES.get(nombre, NIVELES["equilibrado"])[papel]
+
 _carta = {"type": "object", "additionalProperties": False, "required": ["carta", "cantidad", "motivo"],
           "properties": {"carta": {"type": "string", "maxLength": 150}, "cantidad": {"type": "integer", "minimum": 1, "maximum": 99},
                          "motivo": {"type": "string", "maxLength": 300}}}
@@ -128,7 +141,7 @@ def _entorno():
     return {k: v for k, v in os.environ.items() if not k.startswith("CLAUDE_CODE_") and k != "CLAUDECODE"}
 
 
-def _ejecutar(sistema, prompt, esquema, modelo="sonnet", espera=ESPERA):
+def _ejecutar(sistema, prompt, esquema, modelo="sonnet", espera=ESPERA, esfuerzo=None):
     global _proceso
     exe = comando()
     if not exe:
@@ -137,7 +150,7 @@ def _ejecutar(sistema, prompt, esquema, modelo="sonnet", espera=ESPERA):
     with tempfile.TemporaryDirectory(prefix="rastro-ia-") as aqui:
         args = [exe, "-p", "--output-format", "json", "--model", modelo, "--system-prompt", sistema,
                 "--json-schema", json.dumps(esquema), "--tools", "", "--strict-mcp-config", "--setting-sources", "",
-                "--no-session-persistence"]
+                "--no-session-persistence", *(["--effort", esfuerzo] if esfuerzo else [])]
         try:
             _proceso = subprocess.Popen(args, cwd=aqui, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                         creationflags=0 if MAC else subprocess.CREATE_NO_WINDOW)
@@ -252,10 +265,11 @@ def edhrec(comandantes, barato=False):
     return "\n".join(partes)
 
 
-def pedir(tarea, mazo, formato, indicaciones="", objetivo=None, total=None, contexto="", comandantes=None):
+def pedir(tarea, mazo, formato, indicaciones="", objetivo=None, total=None, contexto="", comandantes=None, esfuerzo="equilibrado"):
     """tarea: clave de TAREAS. mazo: ficha del mazo en texto. objetivo: bracket (1-5) o presupuesto en euros;
     total: lo que cuesta ahora (tarea presupuesto). contexto: estadísticas y combos de la interfaz.
-    comandantes: nombres, para añadir EDHREC. Devuelve {datos} con el ESQUEMA, o {error}."""
+    comandantes: nombres, para añadir EDHREC. esfuerzo: clave de NIVELES. Devuelve {datos} con el ESQUEMA, o {error}."""
+    contexto, indicaciones = contexto or "", indicaciones or ""  # la interfaz manda null en lo que no usa
     if tarea not in TAREAS:
         return {"error": "Tarea desconocida."}
     if tarea == "bracket" and objetivo not in (1, 2, 3, 4, 5):
@@ -276,4 +290,5 @@ def pedir(tarea, mazo, formato, indicaciones="", objetivo=None, total=None, cont
         partes.append(f"<contexto>\n{contexto.strip()[:15000]}\n{externo}\n</contexto>")
     if indicaciones.strip():
         partes.append(f"<indicaciones>\n{indicaciones.strip()[:1000]}\n</indicaciones>")
-    return _ejecutar(SISTEMA, "\n\n".join(partes), ESQUEMA)
+    modelo, grado = nivel(esfuerzo)
+    return _ejecutar(SISTEMA, "\n\n".join(partes), ESQUEMA, modelo=modelo, esfuerzo=grado)

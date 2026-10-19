@@ -299,7 +299,7 @@ def _historial(historial):
     return f"<historial>\n{chr(10).join(lineas)}\n</historial>\n\n" if lineas else ""
 
 
-def preguntar(pregunta, historial=None):
+def preguntar(pregunta, historial=None, esfuerzo="equilibrado"):
     """Responde una duda de reglas. Devuelve {respuesta, citas [{id, texto}], cartas [nombres], confianza, aclaracion,
     sin_verificar [números citados que no estaban en las fuentes], normas (fecha)} o {error} / {valido: False, respuesta}."""
     pregunta = (pregunta or "").strip()[:2000]
@@ -310,8 +310,9 @@ def preguntar(pregunta, historial=None):
         return {"error": "Aún no están descargadas las normas de Magic. Comprueba tu conexión y vuelve a abrir Rastro."}
     _, reglas, titulos, glosario = normas
     hist = _historial(historial)
+    apoyo, principal = ia.nivel(esfuerzo, "apoyo"), ia.nivel(esfuerzo)
     a = ia._ejecutar(ANALISTA, f"<indice>\n{_indice(reglas, titulos)}\n</indice>\n\n{hist}<pregunta>\n{pregunta}\n</pregunta>",
-                     _ESQ_ANALISIS, modelo="haiku", espera=120)
+                     _ESQ_ANALISIS, modelo=apoyo[0], esfuerzo=apoyo[1], espera=120)
     if "error" in a:
         return a
     a = a["datos"]
@@ -328,7 +329,8 @@ def preguntar(pregunta, historial=None):
             f"{f['texto']}\nLegal en: {f['legal'] or 'ningún formato'}" + (f"\nProhibida en: {f['prohibida']}" if f["prohibida"] else "")
             + (f"\nRestringida en: {f['restringida']}" if f["restringida"] else "") + ("\nGame Changer de Commander." if f["game_changer"] else "")
             + ("\nRulings oficiales:\n" + "\n".join(f"- {r}" for r in f["rulings"]) if f["rulings"] else "") for f in fichas) + "\n</cartas>")
-    r = ia._ejecutar(JUEZ, "\n\n".join(bloques) + f"\n\n{hist}<pregunta>\n{pregunta}\n</pregunta>", _ESQ_RESPUESTA, modelo="sonnet")
+    r = ia._ejecutar(JUEZ, "\n\n".join(bloques) + f"\n\n{hist}<pregunta>\n{pregunta}\n</pregunta>", _ESQ_RESPUESTA,
+                     modelo=principal[0], esfuerzo=principal[1])
     if "error" in r:
         return r
     r = r["datos"]

@@ -181,9 +181,9 @@ class Api:
     def reglas_estado(self):
         return juez.estado()
 
-    def juez_preguntar(self, pregunta, historial=None):
+    def juez_preguntar(self, pregunta, historial=None, esfuerzo="equilibrado"):
         """Preguntar al juez: una duda de reglas con su historial reciente (ver juez.py)."""
-        return juez.preguntar(pregunta, historial)
+        return juez.preguntar(pregunta, historial, esfuerzo)
 
     def ia_estado(self):
         """Comprobación rápida (sin gastar uso) antes de abrir una tarea de IA: instalado, sesión y cuenta."""
@@ -193,9 +193,9 @@ class Api:
         """Opciones: comprueba que el comando claude existe, tiene sesión y responde."""
         return ia.probar()
 
-    def ia_pedir(self, tarea, mazo, formato, indicaciones="", objetivo=None, total=None, contexto="", comandantes=None):
+    def ia_pedir(self, tarea, mazo, formato, indicaciones="", objetivo=None, total=None, contexto="", comandantes=None, esfuerzo="equilibrado"):
         """Mazos: una tarea de IA (ver ia.TAREAS). Bloquea hasta que claude responde; pywebview lo llama en otro hilo."""
-        return ia.pedir(tarea, mazo, formato, indicaciones, objetivo, total, contexto, comandantes)
+        return ia.pedir(tarea, mazo, formato, indicaciones, objetivo, total, contexto, comandantes, esfuerzo)
 
     def ia_cancelar(self):
         ia.cancelar()

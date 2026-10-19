@@ -44,7 +44,7 @@ function renderJuez() {
       <textarea class="field area" id="juezTexto" rows="2" maxlength="2000" placeholder="Escribe tu duda de reglas… (Intro para enviar, Mayús+Intro para salto de línea)"${juezOcupado || sinNormas ? " disabled" : ""}>${esc(juezBorrador)}</textarea>
       <div class="juez-acciones">
         ${S.chat.length ? `<button type="button" class="btn sm ghost" data-juez-nueva${juezOcupado ? " disabled" : ""}>Nueva conversación</button>` : "<span></span>"}
-        <button class="btn primary" id="juezGo"${juezOcupado || sinNormas ? " disabled" : ""}><svg class="ic"><use href="#i-gavel"/></svg>Preguntar</button>
+        <span class="juez-envio">${selectorEsfuerzo()}<button class="btn primary" id="juezGo"${juezOcupado || sinNormas ? " disabled" : ""}><svg class="ic"><use href="#i-gavel"/></svg>Preguntar</button></span>
       </div>
     </form></div>`;
   $("#scroller").scrollTop = $("#scroller").scrollHeight;
@@ -66,7 +66,7 @@ function mensajeJuez(m, k) {
     ${m.aclaracion ? `<p class="juez-nota">${esc(m.aclaracion)}</p>` : ""}
     ${dudosas.size ? `<p class="juez-nota bad">Cita reglas que no estaban en las normas consultadas y no se han podido comprobar (${[...dudosas].map(esc).join(", ")}): no te fíes de esa parte.</p>` : ""}
     ${m.citas?.length ? `<div class="juez-citas">${m.citas.map(c => `<details id="cita-${k}-${esc(c.id)}"><summary>${esc(c.id)}</summary><p>${esc(c.texto).replace(/\n/g, "<br>")}</p></details>`).join("")}</div>` : ""}
-    ${m.valido !== false ? `<p class="juez-pie">${confianza ? `<span class="juez-conf ${m.confianza}">${confianza}</span>` : ""}${m.cartas?.length ? ` · Cartas consultadas: ${m.cartas.map(esc).join(", ")}` : ""}${m.normas ? ` · Comprehensive Rules del ${esc(m.normas)}` : ""}</p>` : ""}
+    ${m.valido !== false ? `<p class="juez-pie">${confianza ? `<span class="juez-conf ${m.confianza}">${confianza}</span>` : ""}${m.cartas?.length ? ` · Cartas consultadas: ${m.cartas.map(esc).join(", ")}` : ""}${m.normas ? ` · Comprehensive Rules del ${esc(m.normas)}` : ""}${ESFUERZOS[m.nivel] ? ` · ${esc(ESFUERZOS[m.nivel].split(",")[0])}` : ""}</p>` : ""}
   </div>`;
 }
 const parrafos = t => (t || "").split(/\n+/).filter(Boolean).map(p => `<p>${esc(p)}</p>`).join("");
@@ -83,9 +83,10 @@ async function preguntarJuez(q) {
   S.chat.push({ rol: "usuario", texto: q });
   juezOcupado = true; juezBorrador = ""; render();
   let r = null;
-  try { r = await bridge().juez_preguntar(q, historial); } catch { }
+  const nivel = S.opt.esfuerzo;
+  try { r = await bridge().juez_preguntar(q, historial, nivel); } catch { }
   juezOcupado = false;
-  S.chat.push(r?.error || !r ? { rol: "juez", error: r?.error || "No se pudo hablar con Claude." } : { rol: "juez", ...r, texto: r.respuesta, respuesta: undefined });
+  S.chat.push(r?.error || !r ? { rol: "juez", error: r?.error || "No se pudo hablar con Claude." } : { rol: "juez", ...r, texto: r.respuesta, respuesta: undefined, nivel });
   save();
   if (S.view === "judge") render();
   else toast("El juez ha respondido");

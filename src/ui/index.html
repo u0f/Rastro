@@ -326,6 +326,7 @@
     <div class="ia-out" id="iaOut"></div>
     <div class="paste-status" id="iaStatus" aria-live="polite"></div>
     <footer class="modal-foot">
+      <span id="iaEsfuerzo"></span>
       <button type="button" class="btn ghost" id="iaCancel" hidden>Cancelar</button>
       <button type="button" class="btn primary" id="iaGo">Pedir a la IA</button>
     </footer>
@@ -364,6 +365,8 @@
         <input type="checkbox" class="opt-check" id="optIa"></label>
       <div class="opt"><span>Probar conexión<small id="optIaEstado">Comprueba que el comando claude está instalado, con sesión iniciada, y responde.</small></span>
         <button type="button" class="btn sm" id="optIaTest">Probar</button></div>
+      <div class="opt"><span>Esfuerzo de la IA<small>Para el asistente de mazos y el juez. Más esfuerzo da mejores respuestas, pero tarda más y gasta más cuota. También se puede cambiar en cada ventana.</small></span>
+        <span id="optEsfuerzo"></span></div>
     </section>
     <section class="opt-group">
       <h3>Extensión</h3>
