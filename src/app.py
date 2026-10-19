@@ -292,5 +292,11 @@ if __name__ == "__main__":
         r.set_header("Cache-Control", "no-cache")
         return r
     bottle.static_file = sin_cache
+    # Lo que WebView2 guardó antes sin esa cabecera lo seguiría dando por bueno: al cambiar de versión se vacía una vez
+    version = DATOS / "ui.version"
+    if not version.exists() or version.read_text(encoding="utf8") != actualizar.VERSION:
+        for carpeta in ("Cache", "Code Cache"):
+            shutil.rmtree(DATOS / "webview" / "EBWebView" / "Default" / carpeta, ignore_errors=True)
+        version.write_text(actualizar.VERSION, encoding="utf8")
     # Perfil persistente: WebView2 guarda en disco la caché HTTP (imágenes de Scryfall incluidas).
     webview.start(comprobar_actualizacion, (api,), private_mode=False, storage_path=str(DATOS / "webview"), http_port=puerto)
