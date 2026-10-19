@@ -478,7 +478,7 @@ function abrirIA(tarea) {
   if (tarea !== "crear" && !d?.cards.length) return toast("El mazo está vacío");
   const [, titulo, nota, ayuda] = IA_TAREAS[tarea];
   IA = { tarea, r: null, ocupada: false };
-  $("#iaTitle").textContent = titulo; $("#iaNote").textContent = nota;
+  $("#iaTitle").textContent = titulo; $("#iaNote").textContent = nota; $("#iaAviso").innerHTML = avisoIA();
   $("#iaTexto").value = ""; $("#iaTexto").placeholder = ayuda;
   $("#iaFormato").innerHTML = Object.entries(FORMATOS_MAZO).map(([k, f]) => `<option value="${k}">${f.n}</option>`).join("");
   $("#iaFormatoL").hidden = tarea !== "crear";

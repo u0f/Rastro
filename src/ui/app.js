@@ -30,6 +30,7 @@ const S = {
   setup: false,                                       // primeros pasos completados
   opt: { ...OPT_DEF },                                // ventana Opciones
   decks: [], deck: null,                              // mazos (mazos.js) y el abierto
+  chat: [],                                           // Preguntar al juez (juez.js): mensajes de la conversación
   iaPrueba: null,                                     // última prueba de la IA (Opciones): ok, plan, email, fecha
   sel: new Set(),                                     // cartas de Mi lista marcadas para buscar (vacío = todas)
 };
@@ -46,7 +47,7 @@ async function loadState() {
     Object.assign(S, {
       list: d.list || [], shops: d.shops || [], theme: d.theme || "dark", layout: d.layout || "grid", sidebar: d.sidebar ?? true,
       of: { ...S.of, ...d.of }, offers: d.offers || {}, missing: d.missing || [], searchedAt: d.searchedAt || null, stock: d.stock || {},
-      setup: !!d.setup, opt: { ...OPT_DEF, ...d.opt }, decks: d.decks || [], deck: d.deck || null, iaPrueba: d.iaPrueba || null,
+      setup: !!d.setup, opt: { ...OPT_DEF, ...d.opt }, decks: d.decks || [], deck: d.deck || null, iaPrueba: d.iaPrueba || null, chat: d.chat || [],
     });
     // Búsquedas antiguas guardaban ofertas sin precio (no comprables): fuera
     for (const o of Object.values(S.offers)) for (const s in o) o[s] = o[s].filter(r => r.precio_num > 0);
@@ -55,7 +56,7 @@ async function loadState() {
 const save = debounce(() => {
   const d = JSON.stringify({
     list: S.list, shops: S.shops, theme: S.theme, layout: S.layout, sidebar: S.sidebar,
-    of: S.of, offers: S.offers, missing: S.missing, searchedAt: S.searchedAt, stock: S.stock, setup: S.setup, opt: S.opt, decks: S.decks, deck: S.deck, iaPrueba: S.iaPrueba,
+    of: S.of, offers: S.offers, missing: S.missing, searchedAt: S.searchedAt, stock: S.stock, setup: S.setup, opt: S.opt, decks: S.decks, deck: S.deck, iaPrueba: S.iaPrueba, chat: S.chat.slice(-40),
   });
   try { bridge() ? bridge().guardar_estado(d) : localStorage.setItem("rastro", d); } catch { }
 }, 300);
@@ -218,9 +219,11 @@ function render() {
   $("#countList").textContent = S.list.length;
   $("#countShops").textContent = S.shops.length;
   $("#countDecks").textContent = S.decks.length;
+  $("#navJudge").hidden = !S.opt.ia;
+  if (S.view === "judge" && !S.opt.ia) S.view = "explore";
   $("#filters").hidden = S.view !== "explore";
-  $("#offerFilters").hidden = S.view === "explore";
-  $(".toolbar-right").style.visibility = S.view === "shops" || S.view === "decks" ? "hidden" : "";
+  $("#offerFilters").hidden = S.view === "explore" || S.view === "judge";
+  $(".toolbar-right").style.visibility = S.view === "shops" || S.view === "decks" || S.view === "judge" ? "hidden" : "";
   $(".view-toggle").style.display = S.view === "results" ? "none" : "";
   $$(".view-toggle button").forEach(b => b.classList.toggle("on", b.dataset.v === S.layout));
   $("#sort").value = S.sort;
@@ -231,6 +234,7 @@ function render() {
   const title = $("#viewTitle"), count = $("#resultCount");
   if (S.view === "shops") { title.textContent = "Tiendas"; count.textContent = ""; renderShops(); return; }
   if (S.view === "decks") { renderDecks(); return; }
+  if (S.view === "judge") { renderJuez(); return; }
   if (S.view === "results") { title.textContent = "Resultados"; count.textContent = S.list.length ? `${S.list.length} cartas · ${S.shops.length} tiendas` : ""; renderResults(); return; }
   if (S.view === "list") {
     title.textContent = "Mi lista";
@@ -1186,7 +1190,7 @@ for (const [k, [sel, min, max]] of Object.entries(OPT_CAMPOS)) {
 $("#optVer").onchange = e => { S.opt.ver = e.target.checked; save(); };
 $("#optFoil").onchange = e => { S.opt.foil = e.target.checked; save(); render(); };
 // Al activar la IA, si nunca se ha probado bien, se prueba sola
-$("#optIa").onchange = e => { S.opt.ia = e.target.checked; save(); render(); if (S.opt.ia && !S.iaPrueba?.ok) probarIA(); };
+$("#optIa").onchange = e => { S.opt.ia = e.target.checked; save(); render(); if (S.opt.ia && !S.iaPrueba?.ok) probarIA(); if (S.opt.ia) comprobarNormas(); };
 $("#optIaTest").onclick = () => probarIA();
 // Resultado de la última prueba, guardado: cuenta, plan y fecha
 function pintarPruebaIA() {
@@ -1205,8 +1209,15 @@ async function probarIA() {
   b.disabled = false;
   guardarPruebaIA(r || { ok: false, error: "No se pudo probar." });
 }
+// Aviso en todo lo que pide algo a la IA: puede equivocarse y gasta cuota (o crédito de la API)
+function avisoIA() {
+  const uso = S.iaPrueba?.metodo === "api"
+    ? "Cada petición gasta crédito de tu API de Anthropic: puedes consultarlo en console.anthropic.com."
+    : "Cada petición consume tu cuota de Claude: puedes consultarla en la app de Claude (Ajustes → Uso) o con el comando /usage en Claude Code.";
+  return `<svg class="ic"><use href="#i-alert"/></svg><span><b>La IA puede cometer errores:</b> revisa siempre el resultado. ${uso}</span>`;
+}
 function guardarPruebaIA(r) {
-  S.iaPrueba = { ok: !!r.ok, plan: r.plan || "", email: r.email || "", instalado: r.instalado, error: r.error || "", fecha: new Date().toISOString() };
+  S.iaPrueba = { ok: !!r.ok, plan: r.plan || "", metodo: r.metodo || "", email: r.email || "", instalado: r.instalado, error: r.error || "", fecha: new Date().toISOString() };
   save(); pintarPruebaIA(); render();
 }
 $("#optReset").onclick = () => { S.opt = { ...OPT_DEF }; save(); showOptions(); render(); };
@@ -1248,6 +1259,7 @@ async function init() {
   syncOfferUI();
   render();
   search(); // Explorar arranca con las novedades
+  if (S.opt.ia) comprobarNormas();
   if (!S.setup && bridge()) openSetup();
   try {
     const d = await scry(`${API}/sets`);

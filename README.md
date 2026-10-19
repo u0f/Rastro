@@ -24,6 +24,7 @@ En Cardmarket, para saber qué tiene una tienda hay que buscar carta por carta. 
 
   Puedes cambiar el arte (la edición) de cualquier carta del mazo y elegir si es foil: al pasar el ratón por encima la verás con brillo foil. Marca las cartas que ya tienes y pulsa **Comprar lo que falta**: Rastro busca solo esas en tus tiendas.
 - **Asistente IA para mazos** (opcional): crea un mazo a partir de una descripción, optimízalo, pide un roast con lo bueno y lo malo, mejora la base de maná, súbelo o bájalo de bracket, haz una versión económica o pregunta cómo jugarlo. Lo que pidas (presupuesto, estrategia, cartas) manda sobre todo lo demás: al crear un mazo, Rastro comprueba los precios reales y, si se pasa del presupuesto, la IA lo ajusta. Los cambios propuestos se marcan uno a uno antes de aplicarlos. Usa [Claude Code](https://claude.com/claude-code) instalado en tu equipo con tu cuenta de Claude: actívalo y prueba la conexión en **Opciones → Inteligencia artificial**.
+- **Preguntar al juez** (con la IA activada): un chat para resolver dudas de reglas de Magic. Responde con las Comprehensive Rules oficiales, que Rastro descarga de Wizards y mantiene al día solo, y con el texto Oracle y los rulings de las cartas. Cada regla citada se puede desplegar para leer su texto real. La IA puede equivocarse: revisa siempre lo que te diga. Cada pregunta consume tu cuota de Claude (consúltala en la app de Claude o con `/usage` en Claude Code).
 - **Se actualiza solo**: cuando sale una versión nueva, Rastro la descarga y se reinicia sin que tengas que hacer nada. También puedes comprobarlo cuando quieras desde **Opciones → Buscar actualización**.
 
 ## Qué necesitas
@@ -91,7 +92,7 @@ El tema claro u oscuro se cambia con el botón del sol o la luna.
 
 - Todo se queda en tu PC: tu lista, tus mazos y tus tiendas se guardan en `%LOCALAPPDATA%\Rastro`. Rastro no tiene servidores ni cuentas.
 - La extensión solo actúa en las pestañas que abre Rastro. Tu navegación normal no se toca.
-- Rastro solo se conecta a Cardmarket (desde tu navegador), a [Scryfall](https://scryfall.com) para los datos de las cartas, a Moxfield si importas un mazo, a Commander Spellbook si buscas combos, a Claude (a través de Claude Code) y a EDHREC si usas el asistente IA y a GitHub para buscar actualizaciones.
+- Rastro solo se conecta a Cardmarket (desde tu navegador), a [Scryfall](https://scryfall.com) para los datos de las cartas, a Moxfield si importas un mazo, a Commander Spellbook si buscas combos, a Claude (a través de Claude Code), a EDHREC y a la web de Wizards (para las normas) si usas la IA y a GitHub para buscar actualizaciones.
 - Las visitas a Cardmarket se hacen con tu navegador y tu sesión, así que Cardmarket las ve como tuyas. Úsalo para uso personal y con calma.
 
 ## Preguntas frecuentes

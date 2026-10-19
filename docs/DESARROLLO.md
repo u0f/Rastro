@@ -38,6 +38,7 @@ En la raíz solo están los lanzadores (`Rastro.bat` en Windows, `Rastro.command
 | `assets/` | Logo: `logo.py` lo dibuja y genera `logo.png`, `logo.ico` (icono del `.exe`), `ui/logo.png` y `extension/iconos/`. |
 | `../build.bat` | Crea `dist\Rastro.exe` con PyInstaller. |
 | `app.py` | Ventana (pywebview). Expone a JS (`window.pywebview.api`) el estado, la búsqueda, la extensión, Moxfield, la caché y el CSV. Reenvía los eventos de búsqueda a `onMotor(...)` en la interfaz. |
+| `juez.py` | Preguntar al juez. Descarga las Comprehensive Rules (`.txt` enlazado en magic.wizards.com/en/rules) a `reglas/` al abrir Rastro con la IA activada, solo si el enlace cambió, y las lee en reglas, títulos y glosario. Cada pregunta va en tres pasos: `ANALISTA` (haiku) saca cartas, secciones del índice real y términos en inglés; `reunir()` y `cartas()` juntan en local las reglas exactas, el glosario, una búsqueda por palabras y, de Scryfall, Oracle, rulings y legalidad; `JUEZ` (sonnet) responde citando solo esas reglas. Las citas que no estaban en las fuentes se devuelven en `sin_verificar`. |
 | `ia.py` | Asistente IA de mazos. Ejecuta `claude -p` (Claude Code) en segundo plano, encapsulado: sin herramientas, MCP ni ajustes del usuario (`--tools "" --strict-mcp-config --setting-sources ""`), en una carpeta temporal, con prompt de sistema fijo y `--json-schema` obligatorio. Las tareas y sus prompts están en `TAREAS`; la interfaz solo elige una. `estado()` lee `claude auth status` (instalado, sesión y si es suscripción Pro/Max/… o API de pago por uso, sin gastar uso) y se llama antes de cada tarea; `probar()` hace además una petición real, y su resultado queda guardado en `estado.json` (`iaPrueba`). Contexto: la interfaz manda la ficha del mazo (`fichaMazo`: texto oficial de Scryfall de cada carta) y las estadísticas, el bracket y los combos (`contextoMazo`); `edhrec()` añade lo que juega la comunidad con ese comandante (la variante `/budget` en las tareas de precio). La respuesta se valida en `mazos.js` (`limpiarIA`) y las cartas se comprueban en Scryfall antes de aplicarlas. |
 | `busqueda/__init__.py` | Orquestador. Lanza todas las tiendas a la vez en un hilo con asyncio, aísla los fallos de cada tienda y emite eventos: `plan`, `progreso`, `resultado`, `no_tienda`, `tienda_fin`, `espera`, `captcha`, `extension`, `error`, `fin`. |
 | `busqueda/navegador.py` | Modo asistido: servidor local para la extensión, cola de páginas (una pestaña), límites por dominio, backoff, captcha y caché. Abre las URLs en el navegador predeterminado y detecta cuál es (`navegador_usado`). |
@@ -49,6 +50,7 @@ En la raíz solo están los lanzadores (`Rastro.bat` en Windows, `Rastro.command
 | `ui/app.css` | Componentes y layout. |
 | `ui/index.html` | Estructura e iconos. |
 | `ui/mazos.js` | Mazos: formatos, lectura de listas con secciones, legalidad, curva, bracket, combos (Commander Spellbook `find-my-combos`, pedido desde `app.py` por CORS), asistente IA (`ia.py`) y compra de lo que falta. Usa las utilidades de `app.js`. |
+| `ui/juez.js` | Vista Preguntar al juez: chat, citas que despliegan el texto real de cada regla y comprobación de normas al arrancar (`comprobarNormas`). |
 | `ui/app.js` | Interfaz: Scryfall (búsqueda, autocompletado y `/cards/collection` para listas pegadas), Mi lista, progreso, Resultados, Tiendas y detalle. |
 
 **Añadir otro sitio**: crea `busqueda/tiendas/otrositio.py` con una clase como `Cardmarket` (`sitio`, `dominio`, `pestanas`, `intervalo`, `enlace()`, `buscar()`) y regístrala en `busqueda/tiendas/__init__.py`. Añade también su lector en `extension/content.js` y su dominio en `extension/manifest.json`. En la lista de tiendas se escribe como `otrositio:usuario`. Las que no llevan prefijo son de Cardmarket.
@@ -56,7 +58,8 @@ En la raíz solo están los lanzadores (`Rastro.bat` en Windows, `Rastro.command
 En Mac se ejecuta desde el código con `Rastro.command`: crea un entorno de Python en `~/Library/Application Support/Rastro/python`, instala `pywebview` y abre `src/app.py`. Las diferencias con Windows (navegador predeterminado, abrir archivos, portapapeles, carpeta de datos) están en `busqueda/navegador.py` (`_predeterminado`, `abrir`) y `app.py` (`MAC`).
 
 Datos en `%LOCALAPPDATA%\Rastro\` (en Mac, `~/Library/Application Support/Rastro/`):
-- `estado.json`: lista, mazos, tiendas, filtros, opciones y últimas ofertas.
+- `estado.json`: lista, mazos, tiendas, filtros, opciones, últimas ofertas y la conversación con el juez.
+- `reglas\`: las Comprehensive Rules descargadas y `reglas.json` (cuál es y cuándo se comprobó).
 - `cache.sqlite`: páginas ya leídas.
 - `webview\`: caché de la interfaz e imágenes.
 

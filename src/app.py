@@ -13,11 +13,13 @@ import threading
 import urllib.request
 from pathlib import Path
 
+import bottle  # el servidor de pywebview (dependencia suya)
 import webview
 
 import actualizar
 import busqueda
 import ia
+import juez
 from busqueda.navegador import abrir, navegador_usado
 from busqueda.tiendas import resolver
 
@@ -25,6 +27,7 @@ AQUI = Path(__file__).parent
 MAC = sys.platform == "darwin"
 DATOS = (Path.home() / "Library/Application Support" if MAC else Path(os.environ.get("LOCALAPPDATA", Path.home()))) / "Rastro"
 ESTADO = DATOS / "estado.json"
+juez.CARPETA = DATOS / "reglas"
 FOTOS = DATOS / "fotos"
 SERVIDOR_FOTOS = "https://marketplace-article-scans.s3.cardmarket.com/"
 
@@ -171,6 +174,17 @@ class Api:
         except (OSError, ValueError):
             return None
 
+    def reglas_actualizar(self):
+        """Al abrir Rastro con la IA activada: descarga las Comprehensive Rules si hay unas nuevas."""
+        return juez.actualizar()
+
+    def reglas_estado(self):
+        return juez.estado()
+
+    def juez_preguntar(self, pregunta, historial=None):
+        """Preguntar al juez: una duda de reglas con su historial reciente (ver juez.py)."""
+        return juez.preguntar(pregunta, historial)
+
     def ia_estado(self):
         """Comprobación rápida (sin gastar uso) antes de abrir una tarea de IA: instalado, sesión y cuenta."""
         return ia.estado()
@@ -269,13 +283,14 @@ if __name__ == "__main__":
             with socket.socket() as libre:
                 libre.bind(("127.0.0.1", 0))
                 puerto = libre.getsockname()[1]
-    # pywebview sirve ui/ sin Cache-Control, así que WebView2 puede seguir usando archivos viejos tras actualizar.
-    # Si ui/ ha cambiado desde el último arranque, se vacía su caché HTTP (las imágenes se vuelven a descargar).
-    firma = hashlib.sha256(b"".join(p.read_bytes() for p in sorted((AQUI / "ui").iterdir()) if p.is_file())).hexdigest()
-    guardada = DATOS / "ui.firma"
-    if not guardada.exists() or guardada.read_text(encoding="utf8") != firma:
-        for carpeta in ("Cache", "Code Cache"):
-            shutil.rmtree(DATOS / "webview" / "EBWebView" / "Default" / carpeta, ignore_errors=True)
-        guardada.write_text(firma, encoding="utf8")
+    # pywebview sirve ui/ con bottle.static_file, que pierde su Cache-Control: sin él, WebView2 y WebKit pueden seguir
+    # usando archivos viejos tras actualizar. Con no-cache el navegador pregunta siempre (304 si no ha cambiado).
+    servir = bottle.static_file
+
+    def sin_cache(*args, **kwargs):
+        r = servir(*args, **kwargs)
+        r.set_header("Cache-Control", "no-cache")
+        return r
+    bottle.static_file = sin_cache
     # Perfil persistente: WebView2 guarda en disco la caché HTTP (imágenes de Scryfall incluidas).
     webview.start(comprobar_actualizacion, (api,), private_mode=False, storage_path=str(DATOS / "webview"), http_port=puerto)

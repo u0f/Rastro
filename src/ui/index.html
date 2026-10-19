@@ -22,6 +22,7 @@
     <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
     <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
     <symbol id="i-panel" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></symbol>
+    <symbol id="i-gavel" viewBox="0 0 24 24"><path d="m14.5 12.5-8 8a2.12 2.12 0 1 1-3-3l8-8"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/></symbol>
     <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z"/></symbol>
     <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></symbol>
     <symbol id="i-store" viewBox="0 0 24 24"><path d="M3 9h18l-1.5-5h-15z"/><path d="M5 9v11h14V9"/><path d="M10 20v-5h4v5"/></symbol>
@@ -69,6 +70,7 @@
   <aside class="sidebar" id="sidebar">
     <nav class="nav">
       <button class="nav-item active" data-view="explore"><svg class="ic"><use href="#i-compass"/></svg>Explorar</button>
+      <button class="nav-item" data-view="judge" id="navJudge" hidden><svg class="ic"><use href="#i-gavel"/></svg>Preguntar al juez</button>
       <button class="nav-item" data-view="list"><svg class="ic"><use href="#i-bookmark"/></svg>Mi lista<span class="count" id="countList">0</span></button>
       <button class="nav-item" data-view="results"><svg class="ic"><use href="#i-table"/></svg>Resultados</button>
       <button class="nav-item" data-view="decks"><svg class="ic"><use href="#i-layers"/></svg>Mazos<span class="count" id="countDecks">0</span></button>
@@ -313,6 +315,7 @@
       <button class="icon-btn" value="cancel" formnovalidate title="Cerrar"><svg class="ic"><use href="#i-x"/></svg></button>
     </header>
     <p class="modal-note" id="iaNote"></p>
+    <p class="ia-aviso" id="iaAviso"></p>
     <div class="deck-dlg-row" id="iaCampos">
       <label class="deck-dlg-field" id="iaFormatoL">Formato<select class="field" id="iaFormato"></select></label>
       <label class="deck-dlg-field" id="iaObjetivoL">Bracket objetivo<select class="field" id="iaObjetivo">
@@ -377,5 +380,6 @@
 
 <script src="app.js"></script>
 <script src="mazos.js"></script>
+<script src="juez.js"></script>
 </body>
 </html>

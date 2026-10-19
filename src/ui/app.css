@@ -839,3 +839,37 @@ body:not(.detail-open) .detail { border-left-color: transparent; }
 .ia-change small { color: var(--text-3); }
 .opt .good, .ia-out p.good { color: var(--ok); }
 .opt .bad, .ia-out p.bad { color: var(--bad); }
+.ia-aviso { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); color: var(--text-2); font-size: var(--fs-xs); }
+.ia-aviso .ic { width: 15px; height: 15px; color: var(--warn); margin-top: 1px; }
+
+/* Preguntar al juez */
+.results.juez { display: block; }
+.juez-wrap { max-width: 860px; margin: 0 auto; display: grid; gap: var(--s-3); }
+.ia-aviso.bad { color: var(--bad); }
+.juez-chat { display: grid; gap: var(--s-3); }
+.juez-intro { color: var(--text-2); font-size: var(--fs-sm); }
+.juez-intro p { margin: 0 0 var(--s-3); }
+.juez-ejemplos { display: flex; flex-wrap: wrap; gap: 6px; }
+.juez-ejemplos .btn { white-space: normal; text-align: left; height: auto; padding-block: 6px; }
+.juez-msg { padding: 12px 14px; border-radius: var(--r-lg); font-size: var(--fs-sm); line-height: 1.55; }
+.juez-msg p { margin: 0 0 8px; }
+.juez-msg p:last-child { margin-bottom: 0; }
+.juez-msg.usuario { justify-self: end; max-width: 80%; background: var(--surface-3); }
+.juez-msg.juez { background: var(--surface-1); border: 1px solid var(--border); }
+.juez-msg.fuera { color: var(--text-2); }
+.juez-msg .bad { color: var(--bad); }
+.juez-msg .muted { color: var(--text-3); }
+.juez-cita { display: inline; padding: 0 5px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface-2); color: var(--accent); font: inherit; font-size: var(--fs-xs); cursor: pointer; }
+.juez-cita:hover { border-color: var(--accent); }
+.juez-cita.bad { color: var(--bad); }
+.juez-nota { color: var(--text-2); font-size: var(--fs-xs); }
+.juez-citas { display: grid; gap: 4px; margin-top: 10px; }
+.juez-citas details { border-radius: 8px; background: var(--surface-2); padding: 4px 10px; font-size: var(--fs-xs); }
+.juez-citas summary { cursor: pointer; color: var(--accent); }
+.juez-citas details p { margin: 6px 0 4px; color: var(--text-2); }
+.juez-pie { margin-top: 10px !important; color: var(--text-3); font-size: var(--fs-xs); }
+.juez-conf.alta { color: var(--ok); }
+.juez-conf.media { color: var(--warn); }
+.juez-conf.baja { color: var(--bad); }
+.juez-form { position: sticky; bottom: 0; display: grid; gap: 6px; padding: var(--s-2) 0; background: var(--bg); }
+.juez-acciones { display: flex; justify-content: space-between; gap: var(--s-2); }
