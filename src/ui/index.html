@@ -306,6 +306,28 @@
     <div class="art-grid" id="artGrid"></div>
   </form>
 </dialog>
+<dialog class="modal ia-dlg" id="iaDlg">
+  <form method="dialog" class="modal-body" id="iaForm">
+    <header class="modal-head">
+      <h2 id="iaTitle">Asistente IA</h2>
+      <button class="icon-btn" value="cancel" formnovalidate title="Cerrar"><svg class="ic"><use href="#i-x"/></svg></button>
+    </header>
+    <p class="modal-note" id="iaNote"></p>
+    <div class="deck-dlg-row" id="iaCampos">
+      <label class="deck-dlg-field" id="iaFormatoL">Formato<select class="field" id="iaFormato"></select></label>
+      <label class="deck-dlg-field" id="iaObjetivoL">Bracket objetivo<select class="field" id="iaObjetivo">
+        <option value="1">1 · Exhibición</option><option value="2">2 · Básico</option><option value="3">3 · Mejorado</option><option value="4">4 · Optimizado</option><option value="5">5 · cEDH</option>
+      </select></label>
+    </div>
+    <textarea class="field area" id="iaTexto" rows="3" maxlength="1000" spellcheck="false"></textarea>
+    <div class="ia-out" id="iaOut"></div>
+    <div class="paste-status" id="iaStatus" aria-live="polite"></div>
+    <footer class="modal-foot">
+      <button type="button" class="btn ghost" id="iaCancel" hidden>Cancelar</button>
+      <button type="button" class="btn primary" id="iaGo">Pedir a la IA</button>
+    </footer>
+  </form>
+</dialog>
 <dialog class="modal" id="optDlg">
   <form method="dialog" class="modal-body" id="optForm">
     <header class="modal-head">
@@ -332,6 +354,13 @@
         <span class="opt-num"><input class="field" id="optCache" type="number" min="0" max="72" step="1"> h</span></label>
       <div class="opt"><span>Vaciar caché<small>Borra las páginas guardadas y los resultados de la última búsqueda; la siguiente lo pedirá todo de nuevo. Útil si alguna tienda sale vacía sin motivo.</small></span>
         <button type="button" class="btn sm" id="optClear"><svg class="ic"><use href="#i-trash"/></svg>Vaciar</button></div>
+    </section>
+    <section class="opt-group">
+      <h3>Inteligencia artificial</h3>
+      <label class="opt"><span>Asistente de mazos con IA<small>Crear, optimizar, roast, base de maná, bracket y más. Usa Claude Code (el comando <code>claude</code>) instalado en este equipo, con tu cuenta de Claude.</small></span>
+        <input type="checkbox" class="opt-check" id="optIa"></label>
+      <div class="opt"><span>Probar conexión<small id="optIaEstado">Comprueba que el comando claude está instalado, con sesión iniciada, y responde.</small></span>
+        <button type="button" class="btn sm" id="optIaTest">Probar</button></div>
     </section>
     <section class="opt-group">
       <h3>Extensión</h3>

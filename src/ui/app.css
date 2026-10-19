@@ -824,3 +824,18 @@ body:not(.detail-open) .detail { border-left-color: transparent; }
 .card .name { display: flex; align-items: center; }
 .card .name .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .card .name .qty, .card .name .foil-btn, .card .name .foil-tag { flex: none; }
+
+/* Asistente IA */
+.ia-tasks { display: flex; flex-wrap: wrap; gap: 6px; }
+.ia-out { display: grid; gap: 6px; max-height: 50vh; overflow: auto; font-size: var(--fs-sm); }
+.ia-out:empty { display: none; }
+.ia-out p { margin: 0 0 6px; }
+.ia-name { margin: 0; }
+.ia-points { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.ia-points.good li::marker { color: var(--ok); }
+.ia-points.bad li::marker { color: var(--bad); }
+.ia-change { align-items: flex-start; padding: 6px 8px; border-radius: 8px; background: var(--surface-2); }
+.ia-change span { display: grid; gap: 2px; }
+.ia-change small { color: var(--text-3); }
+.opt .good, .ia-out p.good { color: var(--ok); }
+.opt .bad, .ia-out p.bad { color: var(--bad); }

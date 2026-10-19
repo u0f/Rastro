@@ -144,10 +144,10 @@ function renderDecks() {
     title.textContent = "Mazos";
     count.textContent = S.decks.length ? `${S.decks.length} mazo${S.decks.length > 1 ? "s" : ""}` : "";
     results.innerHTML = S.decks.length ? `
-      <div class="deck-top"><button class="btn primary" data-deck-new><svg class="ic"><use href="#i-plus"/></svg>Nuevo mazo</button></div>
+      <div class="deck-top">${S.opt.ia ? `<button class="btn" data-ia="crear"><svg class="ic"><use href="#i-plus"/></svg>Crear con IA</button>` : ""}<button class="btn primary" data-deck-new><svg class="ic"><use href="#i-plus"/></svg>Nuevo mazo</button></div>
       <div class="deck-tiles">${S.decks.map(tileMazo).join("")}</div>`
       : empty("layers", "Aún no tienes mazos", "Crea un mazo de cualquier formato, pega su lista o añade cartas una a una, y compra en tus tiendas solo lo que te falta.",
-        `<div class="suggestions"><button class="btn primary" data-deck-new><svg class="ic"><use href="#i-plus"/></svg>Nuevo mazo</button></div>`);
+        `<div class="suggestions"><button class="btn primary" data-deck-new><svg class="ic"><use href="#i-plus"/></svg>Nuevo mazo</button>${S.opt.ia ? `<button class="btn" data-ia="crear">Crear con IA</button>` : ""}</div>`);
     return;
   }
   const i = infoMazo(d);
@@ -187,6 +187,7 @@ function renderDecks() {
       </div>
       <aside class="deck-side">
         ${portada ? `<span class="deck-preview-wrap${esFoil(portada) ? " foil" : ""}" id="deckPreviewWrap" data-def-foil="${esFoil(portada) ? 1 : ""}"><img class="deck-preview" id="deckPreview" alt="" src="${esc(img(portada.card))}" data-def="${esc(img(portada.card))}"></span>` : ""}
+        ${S.opt.ia ? panelIA(d) : ""}
         ${panelCombos(d)}
         ${i.bracket ? panelBracket(i.bracket, d) : ""}
         ${panelLegal(i)}
@@ -269,24 +270,31 @@ const combosAlDia = d => d.combos && d.combos.firma === firmaMazo(d);
 
 async function buscarCombos() {
   const d = deckActual(); if (!d) return;
+  if (!d.cards.some(e => e.zone !== "side")) return toast("El mazo está vacío");
+  S.buscandoCombos = true; render();
+  const ok = await consultarCombos(d);
+  S.buscandoCombos = false;
+  if (!ok) { render(); return toast("No se pudo consultar Commander Spellbook. Inténtalo de nuevo"); }
+  save(); render();
+}
+
+// Pide los combos del mazo a Commander Spellbook y los guarda en d.combos. Devuelve false si falla.
+async function consultarCombos(d) {
   const nombres = z => d.cards.filter(e => e.zone === z).map(e => ({ card: faces(e.card)[0].name }));
   const cuerpo = { commanders: nombres("commander"), main: nombres("main") };
-  if (!cuerpo.commanders.length && !cuerpo.main.length) return toast("El mazo está vacío");
-  S.buscandoCombos = true; render();
   let r = null;
   try {
     r = bridge() ? await bridge().buscar_combos(cuerpo)
       : (await (await fetch("https://backend.commanderspellbook.com/find-my-combos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) })).json()).results;
   } catch { }
-  S.buscandoCombos = false;
-  if (!r) { render(); return toast("No se pudo consultar Commander Spellbook. Inténtalo de nuevo"); }
+  if (!r) return false;
   const tengo = new Set(d.cards.flatMap(e => [e.card.name, faces(e.card)[0].name]));
   const resumen = c => ({ id: c.id, cartas: c.uses.map(u => u.card.name), produce: c.produces.map(p => p.feature.name),
     mana: c.manaNeeded || "", pasos: c.description || "", requisitos: [c.easyPrerequisites, c.notablePrerequisites].filter(Boolean).join("\n") });
   const porUso = (a, b) => (b.popularity || 0) - (a.popularity || 0);
   d.combos = { firma: firmaMazo(d), en: r.included.sort(porUso).map(resumen),
     casi: r.almostIncluded.sort(porUso).slice(0, 8).map(c => ({ ...resumen(c), falta: c.uses.map(u => u.card.name).filter(n => !tengo.has(n)) })) };
-  save(); render();
+  return true;
 }
 
 const comboHTML = (c, casi) => `<details class="combo">
@@ -417,14 +425,301 @@ function comprarFaltan() {
   startShopSearch();
 }
 
+const textoMazo = d => Object.keys(ZONAS).map(z => {
+  const es = d.cards.filter(e => e.zone === z);
+  return es.length ? `${{ commander: "Commander", main: "Deck", side: "Sideboard" }[z]}\n${es.map(e => `${e.qty} ${e.card.name} (${e.card.set.toUpperCase()}) ${e.card.collector_number}`).join("\n")}` : "";
+}).filter(Boolean).join("\n\n");
+
 function copiarLista() {
   const d = deckActual(); if (!d) return;
-  const txt = Object.entries(ZONAS).map(([z, n]) => {
-    const es = d.cards.filter(e => e.zone === z);
-    return es.length ? `${{ commander: "Commander", main: "Deck", side: "Sideboard" }[z]}\n${es.map(e => `${e.qty} ${e.card.name} (${e.card.set.toUpperCase()}) ${e.card.collector_number}`).join("\n")}` : "";
-  }).filter(Boolean).join("\n\n");
+  const txt = textoMazo(d);
   (bridge() ? bridge().copiar(txt) : navigator.clipboard.writeText(txt)).then(() => toast("Lista copiada al portapapeles"), () => toast("No se pudo copiar"));
 }
+
+/* ---------- Asistente IA (Claude Code en este equipo, desde ia.py) ---------- */
+// Cada tarea: [botón, título del diálogo, explicación, ayuda del cuadro de indicaciones]
+const IA_TAREAS = {
+  optimizar: ["Optimizar", "Optimizar el mazo", "Propone cambios que lo mejoran sin cambiar su estrategia.", "Indicaciones opcionales: presupuesto, cartas que no quieres tocar…"],
+  roast: ["Roast", "Roast del mazo", "Lo bueno, lo malo y una nota, con sinceridad y algo de humor.", "Indicaciones opcionales"],
+  mana: ["Base de maná", "Mejorar la base de maná", "Tierras, fijadores de color y rampa según tu curva y tus colores.", "Indicaciones opcionales: presupuesto para tierras…"],
+  bracket: ["Cambiar bracket", "Subir o bajar de bracket", "Cambios para llevar el mazo al bracket que elijas.", "Indicaciones opcionales: qué quieres conservar…"],
+  barato: ["Versión económica", "Versión económica", "Cambia las cartas caras por alternativas baratas con la misma función.", "Indicaciones opcionales: precio máximo por carta…"],
+  jugar: ["Cómo jugarlo", "Cómo jugar el mazo", "Plan de juego, mulligan y amenazas a vigilar.", "Indicaciones opcionales: contra qué juegas…"],
+  crear: ["Crear con IA", "Crear mazo con IA", "Describe el mazo y la IA lo arma entero. Después puedes cambiar lo que quieras.", "Por ejemplo: Commander de Atraxa con contadores +1/+1, presupuesto de 100 €"],
+};
+let IA = null; // { tarea, formato, r, ocupada }
+
+function panelIA(d) {
+  const cmd = fmtMazo(d).cmd;
+  const p = S.iaPrueba;
+  return `<section class="deck-panel"><h3>Asistente IA${p?.ok ? `<span>${esc(p.plan)}</span>` : ""}</h3><div class="ia-tasks">${Object.entries(IA_TAREAS)
+    .filter(([k]) => k !== "crear" && (k !== "bracket" || cmd))
+    .map(([k, [b]]) => `<button class="btn sm" data-ia="${k}">${b}</button>`).join("")}</div>
+    ${p?.ok ? "" : `<p class="deck-note ${p ? "warn" : "muted"}">${p ? `La última prueba falló: ${esc(p.error)}` : "Aún no has probado la conexión con Claude."} Revísalo en Opciones → Inteligencia artificial.</p>`}</section>`;
+}
+
+// Antes de cada tarea, comprobación rápida (sin gastar uso): si falta claude o la sesión, se avisa y no se deja pedir
+async function comprobarIA(yo) {
+  if (!bridge()) return;
+  let e = null;
+  try { e = await bridge().ia_estado(); } catch { }
+  if (IA !== yo || !e) return;
+  if (!e.ok) {
+    IA.bloqueada = true; pintarBotonIA();
+    $("#iaStatus").innerHTML = `<span class="bad">${esc(e.error)}</span>${e.instalado === false
+      ? ` <a href="https://claude.com/claude-code" target="_blank" rel="noopener">Cómo instalar Claude Code</a>` : ""} Después, prueba la conexión en Opciones.`;
+  }
+  // Si cambió la cuenta o el estado desde la última prueba, se actualiza lo guardado
+  if (!!S.iaPrueba?.ok !== e.ok || (e.ok && S.iaPrueba.plan !== e.plan)) guardarPruebaIA(e);
+}
+
+function abrirIA(tarea) {
+  const d = deckActual();
+  if (tarea !== "crear" && !d?.cards.length) return toast("El mazo está vacío");
+  const [, titulo, nota, ayuda] = IA_TAREAS[tarea];
+  IA = { tarea, r: null, ocupada: false };
+  $("#iaTitle").textContent = titulo; $("#iaNote").textContent = nota;
+  $("#iaTexto").value = ""; $("#iaTexto").placeholder = ayuda;
+  $("#iaFormato").innerHTML = Object.entries(FORMATOS_MAZO).map(([k, f]) => `<option value="${k}">${f.n}</option>`).join("");
+  $("#iaFormatoL").hidden = tarea !== "crear";
+  $("#iaObjetivoL").hidden = tarea !== "bracket";
+  if (tarea === "bracket") { const b = infoMazo(d).bracket?.b || 2; $("#iaObjetivo").value = String(b >= 4 ? b - 1 : b + 1); }
+  $("#iaCampos").hidden = tarea !== "crear" && tarea !== "bracket";
+  $("#iaOut").innerHTML = ""; $("#iaStatus").textContent = "";
+  pintarBotonIA();
+  $("#iaDlg").showModal(); $("#iaTexto").focus();
+  comprobarIA(IA);
+}
+
+const iaAplicable = r => r?.valido && (IA.tarea === "crear" ? IA.cartas?.length : r.quitar.length || r.anadir.length);
+function pintarBotonIA() {
+  const go = $("#iaGo"), r = IA?.r;
+  go.disabled = !!IA?.ocupada || !!IA?.bloqueada;
+  go.textContent = IA?.ocupada ? "Pensando…" : iaAplicable(r) ? (IA.tarea === "crear" ? "Crear este mazo" : "Aplicar los marcados") : r ? "Volver a pedir" : "Pedir a la IA";
+  $("#iaCancel").hidden = !IA?.ocupada;
+}
+
+async function pedirIA() {
+  const d = deckActual(), tarea = IA.tarea, texto = $("#iaTexto").value.trim(), status = $("#iaStatus");
+  if (!bridge()) { status.innerHTML = `<span class="bad">La IA solo funciona dentro de la app.</span>`; return; }
+  if (tarea === "crear" && !texto) { status.innerHTML = `<span class="bad">Describe el mazo que quieres.</span>`; return; }
+  const yo = IA;
+  IA.formato = tarea === "crear" ? $("#iaFormato").value : d.format;
+  const formato = FORMATOS_MAZO[IA.formato]?.n || IA.formato;
+  IA.ocupada = true; IA.r = IA.cartas = null; pintarBotonIA();
+  $("#iaOut").innerHTML = "";
+  const llamar = async (...args) => {
+    let x = null;
+    try { x = await bridge().ia_pedir(...args); } catch { }
+    return x?.datos ? limpiarIA(x.datos) : { error: x?.error || "No se pudo hablar con Claude." };
+  };
+  // Contexto: los combos se consultan si no están al día (si falla, se sigue sin ellos)
+  let contexto = "", comandantes = [];
+  if (tarea !== "crear") {
+    if (!combosAlDia(d)) {
+      status.textContent = "Reuniendo contexto: combos del mazo en Commander Spellbook…";
+      if (await consultarCombos(d)) save();
+      if (IA !== yo) return;
+    }
+    contexto = contextoMazo(d);
+    comandantes = d.cards.filter(e => e.zone === "commander").map(e => e.card.name);
+  }
+  status.textContent = `Claude está trabajando${comandantes.length && IA.formato === "commander" ? " (con datos de EDHREC)" : ""}. Puede tardar uno o dos minutos…`;
+  let r = await llamar(tarea, tarea === "crear" ? "" : fichaMazo(d), formato, texto, tarea === "bracket" ? +$("#iaObjetivo").value : null, null, contexto, comandantes);
+  let aviso = "";
+  // Mazo nuevo: se comprueban los precios reales (impresión más barata, sin básicas) y, si se pasa del presupuesto más de
+  // un 5 %, la IA lo reajusta (hasta 2 veces). Al final se queda el intento más cercano al presupuesto sin pasarse.
+  if (IA === yo && tarea === "crear" && r.valido && r.lista?.length) {
+    const presupuesto = r.presupuesto || presupuestoDe(texto), intentos = [];
+    for (let vuelta = 1; ; vuelta++) {
+      status.textContent = "Buscando la impresión más barata de cada carta en Scryfall…";
+      let res;
+      try {
+        res = await resolveCards(r.lista.map(c => ({ name: c.carta, qty: c.cantidad, zone: c.zona })));
+        await masBaratas(res.found);
+      } catch { if (!intentos.length) r = { error: "No se pudo contactar con Scryfall." }; break; }
+      if (IA !== yo) return;
+      const total = res.found.reduce((t, x) => t + coste(x), 0);
+      intentos.push({ r, cartas: res.found, missing: res.missing, total });
+      if (!presupuesto || total <= presupuesto * 1.05) break;
+      if (vuelta > 2) break;
+      status.textContent = `Se pasa del presupuesto (${fmtEur(total)} de ${fmtEur(presupuesto)}). La IA lo está ajustando, intento ${vuelta} de 2…`;
+      const nuevo = await llamar("presupuesto", fichaMazo({ cards: res.found }, true), formato, texto, presupuesto, total);
+      if (IA !== yo) return;
+      if (nuevo.error || !nuevo.valido || !nuevo.lista.length) { aviso = `No se pudo ajustar al presupuesto: ${nuevo.error || "la IA no devolvió una lista"}.`; break; }
+      r = { ...nuevo, nombre: nuevo.nombre || r.nombre, presupuesto };
+    }
+    if (intentos.length) {
+      const dentro = intentos.filter(x => x.total <= presupuesto * 1.05);
+      const mejor = !presupuesto ? intentos[0] : dentro.length ? dentro.reduce((a, b) => b.total > a.total ? b : a) : intentos.reduce((a, b) => b.total < a.total ? b : a);
+      r = mejor.r;
+      Object.assign(IA, { cartas: mejor.cartas, missing: mejor.missing, total: mejor.total, presupuesto });
+      if (presupuesto && mejor.total > presupuesto)
+        aviso ||= mejor.total <= presupuesto * 1.05 ? `Se pasa ${fmtEur(mejor.total - presupuesto)} del presupuesto: revísalo antes de comprar.`
+          : `Tras dos ajustes sigue pasándose del presupuesto (${fmtEur(mejor.total)} de ${fmtEur(presupuesto)}). Puedes pedir una versión económica después.`;
+    }
+  }
+  if (IA !== yo) return; // se cerró el diálogo mientras pensaba
+  IA.ocupada = false;
+  if (r.error) { status.innerHTML = `<span class="bad">${esc(r.error)}</span>`; pintarBotonIA(); return; }
+  IA.r = r;
+  status.innerHTML = aviso ? `<span class="bad">${esc(aviso)}</span>` : "";
+  $("#iaOut").innerHTML = respuestaIA(r);
+  pintarBotonIA();
+}
+
+// Ficha del mazo para la IA: cada carta con su coste, tipo, texto oficial y precio (Scryfall), para que no tire de memoria.
+// paraPresupuesto: el precio es el que cuenta para el presupuesto (las básicas no cuentan).
+function fichaMazo(d, paraPresupuesto) {
+  const linea = e => {
+    const c = e.card, partes = [`${e.qty} ${c.name}`], fs = c.card_faces || [c];
+    if (esBasica(c)) return `${partes[0]} | tierra básica${paraPresupuesto ? " (no cuenta para el presupuesto)" : ""}`;
+    const texto = fs.map(f => f.oracle_text || "").filter(Boolean).join(" // ").replace(/\s*\n\s*/g, " / ");
+    partes.push(c.mana_cost || fs.map(f => f.mana_cost).filter(Boolean).join(" // ") || "sin coste", c.type_line || "");
+    if (texto) partes.push(texto.length > 400 ? texto.slice(0, 400) + "…" : texto);
+    if (fs[0].power != null) partes.push(`${fs[0].power}/${fs[0].toughness}`);
+    const p = paraPresupuesto ? coste(e) : precioE(e) * e.qty;
+    partes.push(p ? `${p.toFixed(2)} €${e.qty > 1 ? " en total" : ""}` : "sin precio en esta edición");
+    if (c.game_changer) partes.push("Game Changer");
+    return partes.join(" | ");
+  };
+  return Object.keys(ZONAS).map(z => {
+    const es = d.cards.filter(e => e.zone === z);
+    return es.length ? `${{ commander: "Commander", main: "Deck", side: "Sideboard" }[z]}\n${es.map(linea).join("\n")}` : "";
+  }).filter(Boolean).join("\n\n");
+}
+
+// Datos calculados por la app para la IA: tamaño, tierras, curva, colores, tipos, valor, bracket, legalidad y combos
+function contextoMazo(d) {
+  const i = infoMazo(d), juego = d.cards.filter(e => e.zone !== "side");
+  const tierras = cuenta(juego, e => esTierra(e.card)), basicas = cuenta(juego, e => esBasica(e.card));
+  const pips = Object.entries(i.pips).filter(([, n]) => n);
+  const lineas = [
+    `Cartas: ${i.total}${i.f.size ? ` (el formato pide ${i.f.exact ? "exactamente" : "al menos"} ${i.f.size})` : ""}; ${i.distintas} distintas.`,
+    `Tierras: ${tierras} (${basicas} básicas). Hechizos: ${i.total - tierras}. Coste medio sin tierras: ${i.cmcMedio.toFixed(2)}.`,
+    `Curva sin tierras: ${i.curva.map((n, k) => `${k === 7 ? "7+" : k}: ${n}`).join(", ")}.`,
+    pips.length ? `Símbolos de maná en los costes: ${pips.map(([c, n]) => `${c} ${n}`).join(", ")}.` : "",
+    `Tipos: ${i.tipos.map(([n, q]) => `${n} ${q}`).join(", ")}.`,
+    i.identidad.length ? `Identidad de color del comandante: ${i.identidad.join("")}.` : "",
+    `Valor del mazo: ${i.valor.toFixed(2)} € (precio de referencia de las ediciones elegidas).`,
+    i.bracket ? `Bracket estimado por la app: ${i.bracket.b} (${BRACKETS[i.bracket.b]}). ${i.bracket.motivos.length ? i.bracket.motivos.join(". ") + "." : "Sin Game Changers, destrucción masiva de tierras ni turnos extra."} La app no ve combos ni intención: tenlo en cuenta.` : "",
+    i.avisos.length ? `Avisos de legalidad: ${i.avisos.join(" ")}` : `Legalidad en ${i.f.n}: sin problemas.`,
+  ];
+  const c = combosAlDia(d) && d.combos;
+  if (c) {
+    lineas.push(c.en.length ? `Combos completos en el mazo (Commander Spellbook): ${c.en.slice(0, 15).map(x => `${x.cartas.join(" + ")} → ${x.produce.slice(0, 2).join(", ")}`).join("; ")}.` : "Combos completos en el mazo (Commander Spellbook): ninguno.");
+    if (c.casi.length) lineas.push(`Combos a una carta: ${c.casi.map(x => `${x.cartas.join(" + ")} (falta ${x.falta.join(", ")}) → ${x.produce.slice(0, 2).join(", ")}`).join("; ")}.`);
+  }
+  return lineas.filter(Boolean).join("\n");
+}
+
+// Coste para el presupuesto: las tierras básicas no cuentan
+const esBasica = c => /\bbasic\b.*\bland\b/i.test(c.type_line || "");
+const coste = e => esBasica(e.card) ? 0 : precio(e.card) * e.qty;
+
+// Cambia cada carta por su impresión de papel más barata con precio (de 15 en 15 por búsqueda, con todas sus páginas)
+async function masBaratas(es) {
+  const ids = [...new Set(es.filter(e => !esBasica(e.card) && e.card.oracle_id).map(e => e.card.oracle_id))];
+  const mejor = new Map();
+  for (let i = 0; i < ids.length; i += 15) {
+    const q = `(${ids.slice(i, i + 15).map(id => `oracleid:${id}`).join(" or ")}) game:paper`;
+    let url = `${API}/cards/search?unique=prints&q=${encodeURIComponent(q)}`;
+    while (url) {
+      const d = await scry(url);
+      for (const p of d.data) {
+        const v = precio(p), m = mejor.get(p.oracle_id);
+        if (v > 0 && (!m || v < precio(m))) mejor.set(p.oracle_id, p);
+      }
+      url = d.has_more ? d.next_page : null;
+      await sleep(100);
+    }
+  }
+  for (const e of es) { const p = mejor.get(e.card.oracle_id); if (p && !esBasica(e.card)) e.card = p; }
+}
+
+// Presupuesto escrito en las indicaciones ("100 €", "presupuesto 100"), por si la IA no lo devuelve
+function presupuestoDe(t) {
+  const m = t.match(/(\d+(?:[.,]\d+)?)\s*(?:€|eur|euros?)|presupuesto\D{0,15}(\d+(?:[.,]\d+)?)/i);
+  return m ? parseFloat((m[1] || m[2]).replace(",", ".")) : 0;
+}
+
+// La respuesta se trata como datos: solo los campos y tipos esperados, con los textos recortados
+function limpiarIA(x) {
+  const txt = (v, n = 2500) => typeof v === "string" ? v.slice(0, n) : "";
+  const lista = (v, f) => Array.isArray(v) ? v.map(f).filter(Boolean) : [];
+  const carta = c => c && txt(c.carta, 150).trim() ? { carta: txt(c.carta, 150).trim(), cantidad: Math.min(99, Math.max(1, parseInt(c.cantidad) || 1)),
+    motivo: txt(c.motivo, 300), zona: ZONAS[c.zona] ? c.zona : "main" } : null;
+  return { valido: x?.valido !== false, presupuesto: Math.max(0, parseFloat(x?.presupuesto) || 0), resumen: txt(x?.resumen), nombre: txt(x?.nombre, 80), nota: Math.min(10, Math.max(0, parseInt(x?.nota) || 0)),
+    buenos: lista(x?.buenos, v => txt(v, 400)).filter(Boolean), malos: lista(x?.malos, v => txt(v, 400)).filter(Boolean),
+    quitar: lista(x?.quitar, carta), anadir: lista(x?.anadir, carta), lista: lista(x?.lista, carta) };
+}
+
+function respuestaIA(r) {
+  const parrafos = t => t.split(/\n+/).filter(Boolean).map(p => `<p>${esc(p)}</p>`).join("");
+  if (!r.valido) return `<div class="ia-text">${parrafos(r.resumen || "La IA no pudo hacer esta tarea.")}</div>`;
+  const puntos = (titulo, xs, cls) => xs.length ? `<h4 class="combo-sub">${titulo}</h4><ul class="ia-points ${cls}">${xs.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
+  const cambio = (tipo, c, k) => `<label class="check ia-change"><input type="checkbox" checked data-ia-${tipo}="${k}">
+    <span><b>${tipo === "q" ? "−" : "+"}${c.cantidad} ${esc(c.carta)}</b>${c.motivo ? `<small>${esc(c.motivo)}</small>` : ""}</span></label>`;
+  const [bien, mal] = IA.tarea === "jugar" ? ["Mulligan y mano inicial", "Amenazas a vigilar"] : ["Lo bueno", "Lo malo"];
+  return `${r.nota ? `<div class="deck-bracket"><b>${r.nota}</b><span>sobre 10</span></div>` : ""}
+    ${r.nombre && IA.tarea === "crear" ? `<h3 class="ia-name">${esc(r.nombre)}</h3>` : ""}
+    <div class="ia-text">${parrafos(r.resumen)}</div>
+    ${puntos(bien, r.buenos, "good")}${puntos(mal, r.malos, "bad")}
+    ${r.quitar.length ? `<h4 class="combo-sub">Quitar</h4>${r.quitar.map((c, k) => cambio("q", c, k)).join("")}` : ""}
+    ${r.anadir.length ? `<h4 class="combo-sub">Añadir</h4>${r.anadir.map((c, k) => cambio("a", c, k)).join("")}` : ""}
+    ${IA.cartas ? listaCreadaIA() : ""}`;
+}
+
+// Mazo creado, ya comprobado en Scryfall: cada carta con su precio y el total frente al presupuesto
+function listaCreadaIA() {
+  const { cartas, missing, total, presupuesto } = IA, zona = { commander: " · comandante", side: " · banquillo", main: "" };
+  return `<h4 class="combo-sub">Lista · ${cuenta(cartas)} cartas · ${fmtEur(total)}</h4>
+    ${presupuesto ? `<p class="${total <= presupuesto ? "good" : "bad"}">Presupuesto: ${fmtEur(presupuesto)}. ${total <= presupuesto ? "Dentro del presupuesto" : `Se pasa ${fmtEur(total - presupuesto)}`} (impresión más barata de cada carta según Scryfall, sin contar las tierras básicas).</p>` : ""}
+    <ul class="ia-points">${Object.keys(ZONAS).flatMap(z => cartas.filter(x => x.zone === z)
+      .map(x => `<li>${x.qty} ${esc(x.card.name)}${zona[z]} · ${esBasica(x.card) ? "básica, no cuenta" : precio(x.card) ? fmtEur(coste(x)) : "sin precio"}</li>`)).join("")}</ul>
+    ${missing.length ? `<p class="bad">No existen en Scryfall y no se añadirán: ${missing.map(x => esc(x.name)).join(", ")}</p>` : ""}`;
+}
+
+// Aplica los cambios marcados (o crea el mazo). Las cartas se buscan en Scryfall: lo que no exista se avisa y no se añade.
+async function aplicarIA() {
+  const r = IA.r, status = $("#iaStatus"), go = $("#iaGo"), crear = IA.tarea === "crear";
+  const marcadas = (tipo, xs) => xs.filter((_, k) => $(`[data-ia-${tipo}="${k}"]`)?.checked);
+  const poner = crear ? [] : marcadas("a", r.anadir), quitar = crear ? [] : marcadas("q", r.quitar);
+  if (!crear && !poner.length && !quitar.length) return toast("No hay cambios marcados");
+  let found = IA.cartas || [], missing = IA.missing || [];
+  if (!crear) {
+    go.disabled = true; status.textContent = "Comprobando las cartas en Scryfall…";
+    try { ({ found, missing } = await resolveCards(poner.map(c => ({ name: c.carta, qty: c.cantidad, zone: "main" })))); await masBaratas(found); }
+    catch { go.disabled = false; status.innerHTML = `<span class="bad">No se pudo contactar con Scryfall.</span>`; return; }
+  }
+  let d = deckActual();
+  if (crear) {
+    d = { id: crypto.randomUUID(), name: r.nombre || "Mazo de la IA", format: IA.formato, cards: [], creado: new Date().toISOString() };
+    S.decks.unshift(d); S.deck = d.id;
+  }
+  const mismo = (e, n) => [e.card.name, faces(e.card)[0].name].some(x => x.toLowerCase() === n.toLowerCase());
+  const noEstaban = [];
+  for (const c of quitar) {
+    let q = c.cantidad;
+    const es = d.cards.filter(e => e.zone !== "commander" && mismo(e, c.carta)).sort((a, b) => (b.zone === "main") - (a.zone === "main"));
+    if (!es.length) noEstaban.push(c.carta);
+    for (const e of es) {
+      const n = Math.min(q, e.qty); e.qty -= n; q -= n;
+      if (e.qty < 1) d.cards.splice(d.cards.indexOf(e), 1);
+      if (!q) break;
+    }
+  }
+  meterEnMazo(d, found);
+  $("#iaDlg").close();
+  save(); render();
+  const avisos = [missing.length && `no existen en Scryfall: ${missing.map(x => x.name).join(", ")}`,
+    noEstaban.length && `no estaban en el mazo (o son el comandante): ${noEstaban.join(", ")}`].filter(Boolean);
+  toast(avisos.length ? `Hecho, pero ${avisos.join("; ")}` : crear ? `Mazo creado: ${d.name}` : "Cambios aplicados");
+}
+
+$("#iaGo").onclick = () => { if (IA && !IA.ocupada) iaAplicable(IA.r) ? aplicarIA() : pedirIA(); };
+$("#iaCancel").onclick = () => bridge()?.ia_cancelar();
+$("#iaDlg").addEventListener("close", () => { if ($("#iaDlg").open) return; if (IA?.ocupada) bridge()?.ia_cancelar(); IA = null; });
 
 // Buscador para añadir cartas sueltas (autocompletado de Scryfall)
 const sugerirMazo = debounce(async v => {
@@ -467,6 +762,7 @@ document.addEventListener("click", e => {
   if (t.closest("[data-deck-new]")) return nuevoMazo();
   if ((x = t.closest("[data-deck-open]"))) { S.deck = x.dataset.deckOpen; save(); render(); $("#scroller").scrollTop = 0; return; }
   if (t.closest("[data-deck-back]")) { S.deck = null; save(); render(); return; }
+  if ((x = t.closest("[data-ia]"))) return abrirIA(x.dataset.ia);
   if (!d) return;
   if (t.closest("[data-deck-paste]")) return pegarEnMazo();
   if (t.closest("[data-deck-export]")) return copiarLista();

@@ -14,7 +14,7 @@ const FORMATOS = { standard: "Standard", pioneer: "Pioneer", modern: "Modern", l
 const MODO_COLOR = { incl: "incluye", exact: "exacto", id: "identidad" };
 const PIP_COLOR = { W: "--mana-w", U: "--mana-u", B: "--mana-b", R: "--mana-r", G: "--mana-g", C: "--mana-c" };
 
-const OPT_DEF = { pausa: 1.5, espera: 20, cache: 6, ver: false, foil: true };
+const OPT_DEF = { pausa: 1.5, espera: 20, cache: 6, ver: false, foil: true, ia: false };
 const S = {
   view: "explore",
   q: "", exact: false,
@@ -30,6 +30,7 @@ const S = {
   setup: false,                                       // primeros pasos completados
   opt: { ...OPT_DEF },                                // ventana Opciones
   decks: [], deck: null,                              // mazos (mazos.js) y el abierto
+  iaPrueba: null,                                     // última prueba de la IA (Opciones): ok, plan, email, fecha
   sel: new Set(),                                     // cartas de Mi lista marcadas para buscar (vacío = todas)
 };
 let sets = [];
@@ -45,7 +46,7 @@ async function loadState() {
     Object.assign(S, {
       list: d.list || [], shops: d.shops || [], theme: d.theme || "dark", layout: d.layout || "grid", sidebar: d.sidebar ?? true,
       of: { ...S.of, ...d.of }, offers: d.offers || {}, missing: d.missing || [], searchedAt: d.searchedAt || null, stock: d.stock || {},
-      setup: !!d.setup, opt: { ...OPT_DEF, ...d.opt }, decks: d.decks || [], deck: d.deck || null,
+      setup: !!d.setup, opt: { ...OPT_DEF, ...d.opt }, decks: d.decks || [], deck: d.deck || null, iaPrueba: d.iaPrueba || null,
     });
     // Búsquedas antiguas guardaban ofertas sin precio (no comprables): fuera
     for (const o of Object.values(S.offers)) for (const s in o) o[s] = o[s].filter(r => r.precio_num > 0);
@@ -54,7 +55,7 @@ async function loadState() {
 const save = debounce(() => {
   const d = JSON.stringify({
     list: S.list, shops: S.shops, theme: S.theme, layout: S.layout, sidebar: S.sidebar,
-    of: S.of, offers: S.offers, missing: S.missing, searchedAt: S.searchedAt, stock: S.stock, setup: S.setup, opt: S.opt, decks: S.decks, deck: S.deck,
+    of: S.of, offers: S.offers, missing: S.missing, searchedAt: S.searchedAt, stock: S.stock, setup: S.setup, opt: S.opt, decks: S.decks, deck: S.deck, iaPrueba: S.iaPrueba,
   });
   try { bridge() ? bridge().guardar_estado(d) : localStorage.setItem("rastro", d); } catch { }
 }, 300);
@@ -1172,6 +1173,8 @@ function showOptions() {
   for (const [k, [sel]] of Object.entries(OPT_CAMPOS)) $(sel).value = S.opt[k];
   $("#optVer").checked = S.opt.ver;
   $("#optFoil").checked = S.opt.foil;
+  $("#optIa").checked = S.opt.ia;
+  pintarPruebaIA();
 }
 for (const [k, [sel, min, max]] of Object.entries(OPT_CAMPOS)) {
   $(sel).onchange = e => {
@@ -1182,6 +1185,30 @@ for (const [k, [sel, min, max]] of Object.entries(OPT_CAMPOS)) {
 }
 $("#optVer").onchange = e => { S.opt.ver = e.target.checked; save(); };
 $("#optFoil").onchange = e => { S.opt.foil = e.target.checked; save(); render(); };
+// Al activar la IA, si nunca se ha probado bien, se prueba sola
+$("#optIa").onchange = e => { S.opt.ia = e.target.checked; save(); render(); if (S.opt.ia && !S.iaPrueba?.ok) probarIA(); };
+$("#optIaTest").onclick = () => probarIA();
+// Resultado de la última prueba, guardado: cuenta, plan y fecha
+function pintarPruebaIA() {
+  const p = S.iaPrueba, est = $("#optIaEstado");
+  if (!p) { est.textContent = "Comprueba que el comando claude está instalado, con sesión iniciada, y responde."; return; }
+  const cuando = new Date(p.fecha).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" });
+  est.innerHTML = p.ok ? `<span class="good">Conexión correcta</span> · ${esc(p.plan)}${p.email ? ` · ${esc(p.email)}` : ""} · probada el ${cuando}`
+    : `<span class="bad">${esc(p.error)}</span>${p.instalado === false ? ` <a href="https://claude.com/claude-code" target="_blank" rel="noopener">Cómo instalar Claude Code</a>` : ""} · ${cuando}`;
+}
+async function probarIA() {
+  const b = $("#optIaTest"), est = $("#optIaEstado");
+  if (!bridge()) { est.innerHTML = `<span class="bad">Solo funciona dentro de la app.</span>`; return; }
+  b.disabled = true; est.textContent = "Probando… (puede tardar unos segundos)";
+  let r = null;
+  try { r = await bridge().ia_probar(); } catch { }
+  b.disabled = false;
+  guardarPruebaIA(r || { ok: false, error: "No se pudo probar." });
+}
+function guardarPruebaIA(r) {
+  S.iaPrueba = { ok: !!r.ok, plan: r.plan || "", email: r.email || "", instalado: r.instalado, error: r.error || "", fecha: new Date().toISOString() };
+  save(); pintarPruebaIA(); render();
+}
 $("#optReset").onclick = () => { S.opt = { ...OPT_DEF }; save(); showOptions(); render(); };
 $("#optClear").onclick = async () => {
   if (!bridge()) return;

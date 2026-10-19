@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import threading
@@ -16,6 +17,7 @@ import webview
 
 import actualizar
 import busqueda
+import ia
 from busqueda.navegador import abrir, navegador_usado
 from busqueda.tiendas import resolver
 
@@ -169,6 +171,21 @@ class Api:
         except (OSError, ValueError):
             return None
 
+    def ia_estado(self):
+        """Comprobación rápida (sin gastar uso) antes de abrir una tarea de IA: instalado, sesión y cuenta."""
+        return ia.estado()
+
+    def ia_probar(self):
+        """Opciones: comprueba que el comando claude existe, tiene sesión y responde."""
+        return ia.probar()
+
+    def ia_pedir(self, tarea, mazo, formato, indicaciones="", objetivo=None, total=None, contexto="", comandantes=None):
+        """Mazos: una tarea de IA (ver ia.TAREAS). Bloquea hasta que claude responde; pywebview lo llama en otro hilo."""
+        return ia.pedir(tarea, mazo, formato, indicaciones, objetivo, total, contexto, comandantes)
+
+    def ia_cancelar(self):
+        ia.cancelar()
+
     def version(self):
         return actualizar.VERSION
 
@@ -245,5 +262,20 @@ if __name__ == "__main__":
     api = Api()
     ventana = webview.create_window("Rastro", str(AQUI / "ui" / "index.html"), js_api=api,
                                     width=1440, height=900, min_size=(720, 560), background_color="#0b0e14")
+    # pywebview sirve ui/ siempre en el mismo puerto: si otra copia de Rastro lo ocupa, esta mostraría su interfaz.
+    puerto = None
+    with socket.socket() as s:
+        if s.connect_ex(("127.0.0.1", 42001)) == 0:
+            with socket.socket() as libre:
+                libre.bind(("127.0.0.1", 0))
+                puerto = libre.getsockname()[1]
+    # pywebview sirve ui/ sin Cache-Control, así que WebView2 puede seguir usando archivos viejos tras actualizar.
+    # Si ui/ ha cambiado desde el último arranque, se vacía su caché HTTP (las imágenes se vuelven a descargar).
+    firma = hashlib.sha256(b"".join(p.read_bytes() for p in sorted((AQUI / "ui").iterdir()) if p.is_file())).hexdigest()
+    guardada = DATOS / "ui.firma"
+    if not guardada.exists() or guardada.read_text(encoding="utf8") != firma:
+        for carpeta in ("Cache", "Code Cache"):
+            shutil.rmtree(DATOS / "webview" / "EBWebView" / "Default" / carpeta, ignore_errors=True)
+        guardada.write_text(firma, encoding="utf8")
     # Perfil persistente: WebView2 guarda en disco la caché HTTP (imágenes de Scryfall incluidas).
-    webview.start(comprobar_actualizacion, (api,), private_mode=False, storage_path=str(DATOS / "webview"))
+    webview.start(comprobar_actualizacion, (api,), private_mode=False, storage_path=str(DATOS / "webview"), http_port=puerto)
