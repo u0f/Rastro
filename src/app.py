@@ -193,9 +193,9 @@ class Api:
         """Opciones: comprueba que el comando claude existe, tiene sesión y responde."""
         return ia.probar()
 
-    def ia_pedir(self, tarea, mazo, formato, indicaciones="", objetivo=None, total=None, contexto="", comandantes=None, esfuerzo="equilibrado"):
+    def ia_pedir(self, tarea, mazo, formato, indicaciones="", objetivo=None, total=None, contexto="", comandantes=None, esfuerzo="equilibrado", coleccion=""):
         """Mazos: una tarea de IA (ver ia.TAREAS). Bloquea hasta que claude responde; pywebview lo llama en otro hilo."""
-        return ia.pedir(tarea, mazo, formato, indicaciones, objetivo, total, contexto, comandantes, esfuerzo)
+        return ia.pedir(tarea, mazo, formato, indicaciones, objetivo, total, contexto, comandantes, esfuerzo, coleccion)
 
     def ia_cancelar(self):
         ia.cancelar()
@@ -235,6 +235,15 @@ class Api:
             return False
         ruta = ruta[0] if isinstance(ruta, (list, tuple)) else ruta
         Path(ruta).write_text("\n".join(tiendas) + "\n", encoding="utf-8")
+        return True
+
+    def guardar_texto(self, nombre, texto):
+        """Guarda un texto (por ejemplo, la colección en CSV) donde elija el usuario."""
+        ruta = ventana.create_file_dialog(webview.FileDialog.SAVE, save_filename=nombre)
+        if not ruta:
+            return False
+        ruta = ruta[0] if isinstance(ruta, (list, tuple)) else ruta
+        Path(ruta).write_text(texto, encoding="utf-8-sig")
         return True
 
     def importar_tiendas(self):

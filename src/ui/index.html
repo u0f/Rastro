@@ -43,6 +43,7 @@
     <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.13-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.14 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/></symbol>
     <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
     <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></symbol>
+    <symbol id="i-library" viewBox="0 0 24 24"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></symbol>
     <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></symbol>
   </defs>
 </svg>
@@ -63,6 +64,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
   <nav class="nav" aria-label="Secciones">
     <button class="nav-item active" data-view="explore" title="Explorar"><svg class="ic"><use href="#i-compass"/></svg><span class="nav-text">Explorar</span></button>
     <button class="nav-item" data-view="decks" title="Mazos"><svg class="ic"><use href="#i-layers"/></svg><span class="nav-text">Mazos</span><span class="count" id="countDecks">0</span></button>
+    <button class="nav-item" data-view="collection" title="Colección"><svg class="ic"><use href="#i-library"/></svg><span class="nav-text">Colección</span><span class="count" id="countCol">0</span></button>
     <button class="nav-item" data-view="list" title="Mi lista"><svg class="ic"><use href="#i-bookmark"/></svg><span class="nav-text">Mi lista</span><span class="count" id="countList">0</span></button>
     <button class="nav-item" data-view="results" title="Resultados"><svg class="ic"><use href="#i-table"/></svg><span class="nav-text">Resultados</span></button>
     <button class="nav-item" data-view="shops" title="Tiendas"><svg class="ic"><use href="#i-store"/></svg><span class="nav-text">Tiendas</span><span class="count" id="countShops">0</span></button>
@@ -337,12 +339,28 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
       </select></label>
     </div>
     <textarea class="field area" id="iaTexto" rows="3" maxlength="1000" spellcheck="false"></textarea>
+    <label class="check" id="iaColL"><input type="checkbox" id="iaColeccion" checked><span id="iaColTxt">Tener en cuenta mi colección</span></label>
     <div class="ia-out" id="iaOut"></div>
     <div class="paste-status" id="iaStatus" aria-live="polite"></div>
     <footer class="modal-foot">
       <span id="iaEsfuerzo"></span>
       <button type="button" class="btn ghost" id="iaCancel" hidden>Cancelar</button>
       <button type="button" class="btn primary" id="iaGo">Pedir a la IA</button>
+    </footer>
+  </form>
+</dialog>
+<dialog class="modal" id="colDlg">
+  <form method="dialog" class="modal-body" id="colForm">
+    <header class="modal-head">
+      <h2>Importar a la colección</h2>
+      <button class="icon-btn" value="cancel" formnovalidate title="Cerrar"><svg class="ic"><use href="#i-x"/></svg></button>
+    </header>
+    <p class="modal-note">Pega una lista (<code>4 Lightning Bolt</code>, <code>1 Sol Ring (C21) 263</code>, <code>*F*</code> al final para foil) o abre un CSV con cabecera exportado de Moxfield, ManaBox, Deckbox o Rastro: se leen las columnas de nombre, cantidad, edición, número y foil. Con edición y número se guarda la impresión exacta.</p>
+    <textarea class="field area" id="colTexto" rows="12" spellcheck="false" placeholder="4 Lightning Bolt&#10;1 Sol Ring (C21) 263&#10;1 Rhystic Study (PCY) 45 *F*"></textarea>
+    <div class="paste-status" id="colStatus" aria-live="polite"></div>
+    <footer class="modal-foot">
+      <span class="col-dlg-left"><button type="button" class="btn sm" id="colFile">Abrir archivo…</button><label class="check"><input type="checkbox" id="colReplace">Reemplazar mi colección</label></span>
+      <button class="btn primary" id="colGo" value="default"><svg class="ic"><use href="#i-plus"/></svg>Importar</button>
     </footer>
   </form>
 </dialog>
@@ -398,6 +416,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 
 <script src="app.js"></script>
 <script src="mazos.js"></script>
+<script src="coleccion.js"></script>
 <script src="juez.js"></script>
 <script src="playtest.js"></script>
 </body>

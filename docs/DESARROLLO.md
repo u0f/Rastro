@@ -50,6 +50,7 @@ En la raíz solo están los lanzadores (`Rastro.bat` en Windows, `Rastro.command
 | `ui/app.css` | Componentes y layout. |
 | `ui/index.html` | Estructura e iconos. |
 | `ui/mazos.js` | Mazos: formatos, lectura de listas con secciones, legalidad, curva, bracket, combos (Commander Spellbook `find-my-combos`, pedido desde `app.py` por CORS), asistente IA (`ia.py`) y compra de lo que falta. Usa las utilidades de `app.js`. |
+| `ui/coleccion.js` | Colección: entradas compactas por impresión y foil en `estado.json` (`coleccion`), ediciones de Scryfall con lo que tienes de cada una, cartas de una edición (`cargarEdicion`), copias en el detalle de cada carta, marcar o sumar desde un mazo, importar listas o CSV con cabecera (`leerColeccion`) y exportar CSV. `coleccionIA()` la resume para la IA, que la recibe en `<coleccion>`: las copias que ya tienes cuentan 0 € para el presupuesto (`coste` en `mazos.js`). |
 | `ui/playtest.js` | Probar un mazo: manos iniciales (mulligan de Londres, probabilidad exacta de tierras con la hipergeométrica) y partida de prueba en solitario (zonas, fases, vidas y contadores, maná, fichas, impuesto de comandante, arrastrar y soltar, deshacer). Todo en local, sin guardar nada. |
 | `ui/juez.js` | Vista Preguntar al juez: chat, citas que despliegan el texto real de cada regla y comprobación de normas al arrancar (`comprobarNormas`). |
 | `ui/app.js` | Interfaz: Scryfall (búsqueda, autocompletado y `/cards/collection` para listas pegadas), Mi lista, progreso, Resultados, Tiendas y detalle. |
@@ -59,7 +60,7 @@ En la raíz solo están los lanzadores (`Rastro.bat` en Windows, `Rastro.command
 En Mac se ejecuta desde el código con `Rastro.command`: crea un entorno de Python en `~/Library/Application Support/Rastro/python`, instala `pywebview` y abre `src/app.py`. Las diferencias con Windows (navegador predeterminado, abrir archivos, portapapeles, carpeta de datos) están en `busqueda/navegador.py` (`_predeterminado`, `abrir`) y `app.py` (`MAC`).
 
 Datos en `%LOCALAPPDATA%\Rastro\` (en Mac, `~/Library/Application Support/Rastro/`):
-- `estado.json`: lista, mazos, tiendas, filtros, opciones, últimas ofertas y la conversación con el juez.
+- `estado.json`: lista, mazos, colección, tiendas, filtros, opciones, últimas ofertas y la conversación con el juez.
 - `reglas\`: las Comprehensive Rules descargadas y `reglas.json` (cuál es y cuándo se comprobó).
 - `cache.sqlite`: páginas ya leídas.
 - `webview\`: caché de la interfaz e imágenes.

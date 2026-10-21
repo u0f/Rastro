@@ -177,6 +177,8 @@ function renderDecks() {
         ${S.opt.ia ? `<button class="btn sm" data-deck-juez title="Pregunta al juez con este mazo como contexto"><svg class="ic"><use href="#i-gavel"/></svg>Juez</button>` : ""}
       </span>
       <span class="deck-head-group">
+        <button class="btn sm ghost" data-deck-col-marcar title="Marca Tengo en las cartas que ya están en tu colección">Marcar de mi colección</button>
+        <button class="btn sm ghost" data-deck-col-add title="Suma las cartas del mazo a tu colección">Añadir a colección</button>
         <button class="btn sm ghost" data-deck-baratas title="Cambia cada carta a su edición más barata">Arte más barato</button>
         <button class="btn sm ghost" data-deck-paste><svg class="ic"><use href="#i-clipboard"/></svg>Pegar lista</button>
         <button class="btn sm ghost" data-deck-export title="Copia la lista como texto">Copiar lista</button>
@@ -518,6 +520,10 @@ function abrirIA(tarea) {
   $("#iaObjetivoL").hidden = tarea !== "bracket";
   if (tarea === "bracket") { const b = infoMazo(d).bracket?.b || 2; $("#iaObjetivo").value = String(b >= 4 ? b - 1 : b + 1); }
   $("#iaCampos").hidden = tarea !== "crear" && tarea !== "bracket";
+  const copias = S.coleccion.reduce((n, e) => n + e.qty, 0);
+  $("#iaColL").hidden = !copias || tarea === "roast" || tarea === "jugar";
+  $("#iaColeccion").checked = true;
+  $("#iaColTxt").textContent = `Tener en cuenta mi colección (${copias} cartas): las que ya tengo no cuentan para el presupuesto`;
   $("#iaOut").innerHTML = ""; $("#iaStatus").textContent = "";
   pintarBotonIA();
   $("#iaDlg").showModal(); $("#iaTexto").focus();
@@ -539,12 +545,14 @@ async function pedirIA() {
   const yo = IA;
   IA.formato = tarea === "crear" ? $("#iaFormato").value : d.format;
   const formato = FORMATOS_MAZO[IA.formato]?.n || IA.formato;
+  IA.coleccion = !$("#iaColL").hidden && $("#iaColeccion").checked;
+  const coleccion = IA.coleccion ? coleccionIA() : "";
   IA.ocupada = true; IA.r = IA.cartas = null; pintarBotonIA();
   $("#iaOut").innerHTML = "";
   const llamar = async (...args) => {
     let x = null;
     const a = [...args]; a.length = 8; // los que falten van como null; el último es el esfuerzo
-    try { x = await bridge().ia_pedir(...a, S.opt.esfuerzo); } catch { }
+    try { x = await bridge().ia_pedir(...a, S.opt.esfuerzo, coleccion); } catch { }
     return x?.datos ? limpiarIA(x.datos) : { error: x?.error || "No se pudo hablar con Claude." };
   };
   // Contexto: los combos se consultan si no están al día (si falla, se sigue sin ellos)
@@ -629,6 +637,8 @@ function fichaMazo(d, paraPresupuesto) {
     const p = paraPresupuesto ? coste(e) : precioE(e) * e.qty;
     partes.push(p ? `${p.toFixed(2)} €${e.qty > 1 ? " en total" : ""}` : "sin precio en esta edición");
     if (c.game_changer) partes.push("Game Changer");
+    const tengo = IA?.coleccion && colNombre(c.name);
+    if (tengo) partes.push(`tiene ${Math.min(tengo, e.qty)} en su colección`);
     return partes.join(" | ");
   };
   return Object.keys(ZONAS).map(z => {
@@ -663,7 +673,7 @@ function contextoMazo(d) {
 
 // Coste para el presupuesto: las tierras básicas no cuentan
 const esBasica = c => /\bbasic\b.*\bland\b/i.test(c.type_line || "");
-const coste = e => esBasica(e.card) ? 0 : precio(e.card) * e.qty;
+const coste = e => esBasica(e.card) ? 0 : precio(e.card) * Math.max(0, e.qty - (IA?.coleccion ? colNombre(e.card.name) : 0));   // con la colección, las copias que ya tienes tampoco
 
 // Cambia cada carta por su impresión de papel más barata con precio (de 15 en 15 por búsqueda, con todas sus páginas)
 async function masBaratas(es) {
@@ -722,9 +732,9 @@ function respuestaIA(r) {
 function listaCreadaIA() {
   const { cartas, missing, total, presupuesto } = IA, zona = { commander: " · comandante", side: " · banquillo", main: "" };
   return `<h4 class="combo-sub">Lista · ${cuenta(cartas)} cartas · ${fmtEur(total)}</h4>
-    ${presupuesto ? `<p class="${total <= presupuesto ? "good" : "bad"}">Presupuesto: ${fmtEur(presupuesto)}. ${total <= presupuesto ? "Dentro del presupuesto" : `Se pasa ${fmtEur(total - presupuesto)}`} (impresión más barata de cada carta según Scryfall, sin contar las tierras básicas).</p>` : ""}
+    ${presupuesto ? `<p class="${total <= presupuesto ? "good" : "bad"}">Presupuesto: ${fmtEur(presupuesto)}. ${total <= presupuesto ? "Dentro del presupuesto" : `Se pasa ${fmtEur(total - presupuesto)}`} (impresión más barata de cada carta según Scryfall, sin contar las tierras básicas${IA.coleccion ? " ni las que ya tienes" : ""}).</p>` : ""}
     <ul class="ia-points">${Object.keys(ZONAS).flatMap(z => cartas.filter(x => x.zone === z)
-      .map(x => `<li>${x.qty} ${esc(x.card.name)}${zona[z]} · ${esBasica(x.card) ? "básica, no cuenta" : precio(x.card) ? fmtEur(coste(x)) : "sin precio"}</li>`)).join("")}</ul>
+      .map(x => `<li>${x.qty} ${esc(x.card.name)}${zona[z]} · ${esBasica(x.card) ? "básica, no cuenta" : IA.coleccion && colNombre(x.card.name) >= x.qty ? "la tienes" : precio(x.card) ? fmtEur(coste(x)) : "sin precio"}</li>`)).join("")}</ul>
     ${missing.length ? `<p class="bad">No existen en Scryfall y no se añadirán: ${missing.map(x => esc(x.name)).join(", ")}</p>` : ""}`;
 }
 
@@ -760,6 +770,7 @@ async function aplicarIA() {
     }
   }
   meterEnMazo(d, found);
+  if (IA.coleccion) marcarDeColeccion(d);
   $("#iaDlg").close();
   save(); render();
   const avisos = [missing.length && `no existen en Scryfall: ${missing.map(x => x.name).join(", ")}`,
@@ -821,6 +832,12 @@ document.addEventListener("click", e => {
   if (t.closest("[data-deck-combos]")) return buscarCombos();
   if (t.closest("[data-deck-buy]")) return comprarFaltan();
   if (t.closest("[data-deck-baratas]")) return artesBaratos();
+  if (t.closest("[data-deck-col-add]")) return mazoAColeccion(d);
+  if (t.closest("[data-deck-col-marcar]")) {
+    if (!S.coleccion.length) return toast("Tu colección está vacía");
+    const n = marcarDeColeccion(d); save(); render();
+    return toast(n ? `${n} carta${n > 1 ? "s" : ""} marcada${n > 1 ? "s" : ""} como Tengo` : "No hay más cartas del mazo en tu colección");
+  }
   if ((x = t.closest("[data-pt-abrir]"))) return abrirPrueba(x.dataset.ptAbrir);
   if (t.closest("[data-deck-juez]")) { S.juezMazo = d.id; save(); goView("judge"); return; }
   if (t.closest("[data-deck-delete]")) {

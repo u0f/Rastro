@@ -34,6 +34,7 @@ const S = {
   juezMazo: null,                                     // mazo vinculado al juez (su id)
   iaPrueba: null,                                     // última prueba de la IA (Opciones): ok, plan, email, fecha
   sel: new Set(),                                     // cartas de Mi lista marcadas para buscar (vacío = todas)
+  coleccion: [],                                      // cartas que tienes (coleccion.js): {id, name, set, cn, foil, qty…}
 };
 let sets = [];
 
@@ -48,7 +49,7 @@ async function loadState() {
     Object.assign(S, {
       list: d.list || [], shops: d.shops || [], theme: d.theme || "dark", layout: d.layout || "grid", sidebar: d.sidebar ?? true,
       of: { ...S.of, ...d.of }, offers: d.offers || {}, missing: d.missing || [], searchedAt: d.searchedAt || null, stock: d.stock || {},
-      setup: !!d.setup, opt: { ...OPT_DEF, ...d.opt }, decks: d.decks || [], deck: d.deck || null, iaPrueba: d.iaPrueba || null, chat: d.chat || [], juezMazo: d.juezMazo || null,
+      setup: !!d.setup, opt: { ...OPT_DEF, ...d.opt }, decks: d.decks || [], deck: d.deck || null, iaPrueba: d.iaPrueba || null, chat: d.chat || [], juezMazo: d.juezMazo || null, coleccion: d.coleccion || [],
     });
     // Búsquedas antiguas guardaban ofertas sin precio (no comprables): fuera
     for (const o of Object.values(S.offers)) for (const s in o) o[s] = o[s].filter(r => r.precio_num > 0);
@@ -57,7 +58,7 @@ async function loadState() {
 const save = debounce(() => {
   const d = JSON.stringify({
     list: S.list, shops: S.shops, theme: S.theme, layout: S.layout, sidebar: S.sidebar,
-    of: S.of, offers: S.offers, missing: S.missing, searchedAt: S.searchedAt, stock: S.stock, setup: S.setup, opt: S.opt, decks: S.decks, deck: S.deck, iaPrueba: S.iaPrueba, chat: S.chat.slice(-40), juezMazo: S.juezMazo,
+    of: S.of, offers: S.offers, missing: S.missing, searchedAt: S.searchedAt, stock: S.stock, setup: S.setup, opt: S.opt, decks: S.decks, deck: S.deck, iaPrueba: S.iaPrueba, chat: S.chat.slice(-40), juezMazo: S.juezMazo, coleccion: S.coleccion,
   });
   try { bridge() ? bridge().guardar_estado(d) : localStorage.setItem("rastro", d); } catch { }
 }, 300);
@@ -222,11 +223,11 @@ function render() {
   document.body.classList.toggle("no-sidebar", !S.sidebar);
   document.body.classList.toggle("sin-foil", !S.opt.foil);
   $$(".nav-item").forEach(b => b.classList.toggle("active", b.dataset.view === S.view));
-  [["#countList", S.list.length], ["#countShops", S.shops.length], ["#countDecks", S.decks.length]]
+  [["#countList", S.list.length], ["#countShops", S.shops.length], ["#countDecks", S.decks.length], ["#countCol", S.coleccion.reduce((n, e) => n + e.qty, 0)]]
     .forEach(([sel, n]) => { const el = $(sel); el.textContent = n; el.toggleAttribute("data-zero", !n); });
   $("#filters").hidden = S.view !== "explore";
-  $("#offerFilters").hidden = S.view === "explore" || S.view === "judge" || (S.view === "decks" && !deckActual());
-  $(".toolbar-right").style.display = S.view === "shops" || S.view === "decks" || S.view === "judge" ? "none" : "";
+  $("#offerFilters").hidden = S.view === "explore" || S.view === "judge" || S.view === "collection" || (S.view === "decks" && !deckActual());
+  $(".toolbar-right").style.display = S.view === "shops" || S.view === "decks" || S.view === "judge" || S.view === "collection" ? "none" : "";
   $("#viewActions").innerHTML = "";   // cada vista pone aquí sus acciones principales
   $(".view-toggle").style.display = S.view === "results" ? "none" : "";
   $$(".view-toggle button").forEach(b => b.classList.toggle("on", b.dataset.v === S.layout));
@@ -239,6 +240,7 @@ function render() {
   if (S.view === "shops") { title.textContent = "Tiendas"; count.textContent = ""; renderShops(); return; }
   if (S.view === "decks") { renderDecks(); return; }
   if (S.view === "judge") { renderJuez(); return; }
+  if (S.view === "collection") { renderColeccion(); return; }
   if (S.view === "results") { title.textContent = "Resultados"; count.textContent = S.list.length ? `${S.list.length} cartas · ${S.shops.length} tiendas` : ""; renderResults(); return; }
   if (S.view === "list") {
     title.textContent = "Mi lista";
@@ -731,11 +733,12 @@ function parseDecklist(text) {
     if (m) { qty = +m[1]; rest = m[2]; }
     rest = rest.replace(/\s+\*[A-Z]+\*\s*$/, "");                     // *F* (foil) de Moxfield
     let name = rest, set = null;
-    const s = rest.match(/^(.*?)\s+[([]([A-Za-z0-9]{2,6})[)\]](?:\s+[\w★-]+)?\s*$/); // "Nombre (SET) 123"
-    if (s) { name = s[1]; set = s[2].toLowerCase(); }
+    let cn = null;
+    const s = rest.match(/^(.*?)\s+[([]([A-Za-z0-9]{2,6})[)\]](?:\s+([\w★-]+))?\s*$/); // "Nombre (SET) 123"
+    if (s) { name = s[1]; set = s[2].toLowerCase(); cn = s[3] || null; }
     name = name.trim();
-    const key = `${name.toLowerCase()}|${set || ""}`;
-    items.set(key, { name, set, qty: (items.get(key)?.qty || 0) + qty });
+    const key = `${name.toLowerCase()}|${set || ""}|${cn || ""}`;
+    items.set(key, { name, set, cn, qty: (items.get(key)?.qty || 0) + qty });
   }
   return [...items.values()];
 }
@@ -744,10 +747,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // Scryfall /cards/collection: hasta 75 cartas por petición; ~150 ms entre peticiones (su límite es 10/s)
 async function resolveCards(items) {
   const found = [], missing = [];
-  const key = id => `${(id.name || "").toLowerCase()}|${id.set || ""}`;
+  const key = id => `${(id.name || "").toLowerCase()}|${id.set || ""}|${id.collector_number || ""}`;
   for (let i = 0; i < items.length; i += 75) {
     const chunk = items.slice(i, i + 75);
-    const ids = chunk.map(x => x.set ? { name: x.name, set: x.set } : { name: x.name });
+    const ids = chunk.map(x => x.set && x.cn ? { set: x.set, collector_number: x.cn } : x.set ? { name: x.name, set: x.set } : { name: x.name });
     const r = await fetch(`${API}/cards/collection`, {
       method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ identifiers: ids }),
     });
@@ -862,6 +865,8 @@ function renderDetail() {
       </div>
       ${c.purchase_uris?.cardmarket ? `<a class="link" href="${esc(c.purchase_uris.cardmarket)}" target="_blank"><svg class="ic"><use href="#i-external"/></svg>Ver en Cardmarket</a>` : ""}
     </div>
+
+    ${colDetalleHTML(c)}
 
     <div class="d-section"><h3>En tus tiendas</h3>${offersHTML(c)}</div>
     ${added ? `<div class="d-section"><h3>Filtros para esta carta</h3>${cardFiltersHTML(listItem(c.id))}</div>` : ""}
@@ -1297,6 +1302,7 @@ async function init() {
     const d = await scry(`${API}/sets`);
     sets = d.data.filter(s => !s.digital && s.card_count > 0);
     $("#setList").innerHTML = sets.map(s => `<option value="${esc(s.name)} (${s.code.toUpperCase()})">`).join("");
+    if (S.view === "collection") render();
   } catch { }
 }
 window.addEventListener("pywebviewready", init, { once: true });
