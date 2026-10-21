@@ -63,7 +63,12 @@ const save = debounce(() => {
 }, 300);
 
 /* ---------- Símbolos de maná ---------- */
+// Los símbolos oficiales de Scryfall; si no cargan (sin conexión), un círculo de color con la letra
 function pip(sym) {
+  const s = sym.toUpperCase(), f = s.replace(/\//g, "");
+  return `<img class="pip" src="https://svgs.scryfall.io/card-symbols/${encodeURIComponent(f)}.svg" alt="{${esc(s)}}" title="{${esc(s)}}" onerror="this.outerHTML=pipTexto('${esc(s)}')">`;
+}
+function pipTexto(sym) {
   const s = sym.toUpperCase();
   if (s === "T") return `<span class="pip pip-t" title="Girar">↷</span>`;
   if (s === "Q") return `<span class="pip pip-t" title="Enderezar">↶</span>`;
@@ -163,7 +168,7 @@ function cardHTML(c, i) {
   const r = c.rarity || "common";
   const added = inList(c.id);
   const small = S.layout === "rows";
-  return `<div class="card${S.selected?.id === c.id ? " selected" : ""}" tabindex="0" data-id="${c.id}" style="--i:${i}">
+  return `<div class="card${S.selected?.id === c.id ? " selected" : ""}" tabindex="0" data-id="${c.id}" style="--i:${i}"${small ? ` data-big="${esc(img(c, "normal"))}"` : ""}>
     ${S.view === "list" ? `<label class="sel-box" title="Buscar solo las marcadas"><input type="checkbox" data-sel="${c.id}"${S.sel.has(c.id) ? " checked" : ""}></label>` : ""}
     <div class="art skel${verFoil(c) ? " foil" : ""}"${soloFoil(c) ? ' title="Solo existe en foil"' : ""}><img alt="${esc(c.name)}" loading="lazy" decoding="async" src="${esc(img(c, small ? "art_crop" : "normal"))}"></div>
     <div class="meta">
@@ -217,16 +222,16 @@ function render() {
   document.body.classList.toggle("no-sidebar", !S.sidebar);
   document.body.classList.toggle("sin-foil", !S.opt.foil);
   $$(".nav-item").forEach(b => b.classList.toggle("active", b.dataset.view === S.view));
-  $("#countList").textContent = S.list.length;
-  $("#countShops").textContent = S.shops.length;
-  $("#countDecks").textContent = S.decks.length;
+  [["#countList", S.list.length], ["#countShops", S.shops.length], ["#countDecks", S.decks.length]]
+    .forEach(([sel, n]) => { const el = $(sel); el.textContent = n; el.toggleAttribute("data-zero", !n); });
   $("#filters").hidden = S.view !== "explore";
-  $("#offerFilters").hidden = S.view === "explore" || S.view === "judge";
-  $(".toolbar-right").style.visibility = S.view === "shops" || S.view === "decks" || S.view === "judge" ? "hidden" : "";
+  $("#offerFilters").hidden = S.view === "explore" || S.view === "judge" || (S.view === "decks" && !deckActual());
+  $(".toolbar-right").style.display = S.view === "shops" || S.view === "decks" || S.view === "judge" ? "none" : "";
+  $("#viewActions").innerHTML = "";   // cada vista pone aquí sus acciones principales
   $(".view-toggle").style.display = S.view === "results" ? "none" : "";
   $$(".view-toggle button").forEach(b => b.classList.toggle("on", b.dataset.v === S.layout));
   $("#sort").value = S.sort;
-  $("#sortDir").textContent = S.dir === "asc" ? "↑" : "↓";
+  $("#sortDir use").setAttribute("href", S.dir === "asc" ? "#i-arrow-up" : "#i-arrow-down");
   results.className = `results ${S.layout === "grid" ? "grid" : "rows"}`;
   renderChips();
 
@@ -289,7 +294,7 @@ function sortLocal(arr) {
 /* Chips de filtros activos */
 function activeFilters() {
   const f = S.f, out = [];
-  f.colors.forEach(c => out.push({ label: `<span class="pip pip-${c}">${c.toUpperCase()}</span>${COLORES[c]}${f.colorMode !== "incl" ? ` · ${MODO_COLOR[f.colorMode]}` : ""}`, off: () => f.colors.delete(c) }));
+  f.colors.forEach(c => out.push({ label: `${pip(c)}${COLORES[c]}${f.colorMode !== "incl" ? ` · ${MODO_COLOR[f.colorMode]}` : ""}`, off: () => f.colors.delete(c) }));
   f.types.forEach(t => out.push({ label: TIPOS[t], off: () => f.types.delete(t) }));
   f.cmc.forEach(n => out.push({ label: `Coste ${n === "7" ? "7+" : n}`, off: () => f.cmc.delete(n) }));
   f.rarity.forEach(r => out.push({ label: `<i class="rdot rar-${{ c: "common", u: "uncommon", r: "rare", m: "mythic" }[r]}"></i>${{ c: "Común", u: "Infrecuente", r: "Rara", m: "Mítica" }[r]}`, off: () => f.rarity.delete(r) }));
@@ -486,6 +491,24 @@ function abrirFoto(e, f) {
   bridge().abrir_foto(f.dataset.foto).catch(() => toast("No se pudo descargar la foto"));
 }
 document.addEventListener("click", e => { const f = e.target.closest("[data-foto]"); if (f) abrirFoto(e, f); }, true);
+
+// Lista compacta: la carta entera al pasar el ratón por la fila, sin salirse de la ventana
+const cardPreview = $("#cardPreview");
+document.addEventListener("mouseover", e => {
+  const row = e.target.closest?.("[data-big]");
+  if (!row) return;
+  const im = cardPreview.firstElementChild || cardPreview.appendChild(Object.assign(document.createElement("img"), { alt: "" }));
+  if (im.getAttribute("src") !== row.dataset.big) im.src = row.dataset.big;
+  const r = row.getBoundingClientRect(), w = 250, h = w * 88 / 63, m = 12;
+  let x = e.clientX + 32;
+  if (x + w > innerWidth - m) x = e.clientX - w - 32;   // si no cabe a la derecha del ratón, a la izquierda
+  let y = r.top + r.height / 2 - h / 2;
+  y = Math.max(m, Math.min(y, innerHeight - h - m));
+  cardPreview.style.transform = `translate(${x}px, ${y}px)`;
+  cardPreview.hidden = false;
+});
+document.addEventListener("mouseout", e => { if (e.target.closest?.("[data-big]") && !e.relatedTarget?.closest?.("[data-big]")) cardPreview.hidden = true; });
+document.addEventListener("click", () => { cardPreview.hidden = true; });
 document.addEventListener("keydown", e => { const f = e.target.closest?.("[data-foto]"); if (f && (e.key === "Enter" || e.key === " ")) abrirFoto(e, f); });
 
 const LANG_ES = { English: "Inglés", French: "Francés", German: "Alemán", Spanish: "Español", Italian: "Italiano", "S-Chinese": "Chino simp.", Japanese: "Japonés", Portuguese: "Portugués", Russian: "Ruso", Korean: "Coreano", "T-Chinese": "Chino trad." };

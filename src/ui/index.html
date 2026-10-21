@@ -40,20 +40,39 @@
     <symbol id="i-settings" viewBox="0 0 24 24"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></symbol>
     <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></symbol>
     <symbol id="i-radar" viewBox="0 0 24 24"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h.01"/><path d="M2.29 9.62A10 10 0 1 0 21.31 8.35"/><path d="M16.24 7.76A6 6 0 1 0 8.23 16.67"/><path d="M12 18h.01"/><path d="M17.99 11.66A6 6 0 0 1 15.77 16.67"/><circle cx="12" cy="12" r="2"/><path d="m13.41 10.59 5.66-5.66"/></symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.13-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.14 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></symbol>
+    <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></symbol>
   </defs>
 </svg>
 
+<!--
+THESIS: Rastro is a card table, not a dashboard: Moxfield's dense deck-and-list structure inside an Arena-style game client. Refuses the generic left-sidebar SaaS shell with rounded stat cards.
+OWN-WORLD: charcoal play-mat surfaces, square 3-4px corners, hairline rules; bronze bevel lines frame headers and tabs; Moxfield-violet for selection and links; one Arena-orange plate for the primary action; real card art as banners and backdrops.
+STORY: the player browses or builds, sees owned vs missing at a glance, and buys what is missing from trusted sellers.
+FIRST VIEWPORT: Arena-style top bar (logo, icon-over-label tabs, search); Moxfield filter rail left; card grid as hero. Deck editor opens on a full-width art banner with the editable name, then type columns.
+FORM: pinned by user (Moxfield structure + Arena atmosphere); seed 38de60fc. Raise from japanese-high-density-web: hairline module grid, no whitespace inflation.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+-->
 <header class="topbar">
-  <button class="icon-btn" id="btnSidebar" title="Mostrar/ocultar filtros"><svg class="ic"><use href="#i-panel"/></svg></button>
   <div class="brand">
     <img class="brand-mark" src="logo.png" alt="" aria-hidden="true">
     <span class="brand-name">Rastro</span>
   </div>
+  <nav class="nav" aria-label="Secciones">
+    <button class="nav-item active" data-view="explore" title="Explorar"><svg class="ic"><use href="#i-compass"/></svg><span class="nav-text">Explorar</span></button>
+    <button class="nav-item" data-view="decks" title="Mazos"><svg class="ic"><use href="#i-layers"/></svg><span class="nav-text">Mazos</span><span class="count" id="countDecks">0</span></button>
+    <button class="nav-item" data-view="list" title="Mi lista"><svg class="ic"><use href="#i-bookmark"/></svg><span class="nav-text">Mi lista</span><span class="count" id="countList">0</span></button>
+    <button class="nav-item" data-view="results" title="Resultados"><svg class="ic"><use href="#i-table"/></svg><span class="nav-text">Resultados</span></button>
+    <button class="nav-item" data-view="shops" title="Tiendas"><svg class="ic"><use href="#i-store"/></svg><span class="nav-text">Tiendas</span><span class="count" id="countShops">0</span></button>
+    <button class="nav-item ia" data-view="judge" id="navJudge" title="Preguntar al juez"><svg class="ic"><use href="#i-gavel"/></svg><span class="nav-text">Juez</span></button>
+  </nav>
 
   <div class="search" id="search">
     <svg class="ic search-ic"><use href="#i-search"/></svg>
     <input id="q" type="text" autocomplete="off" spellcheck="false"
-           placeholder="Busca una carta por nombre…" aria-label="Buscar carta" role="combobox"
+           placeholder="Busca una carta…" aria-label="Buscar carta" role="combobox"
            aria-expanded="false" aria-controls="suggest">
     <button class="icon-btn sm" id="qClear" title="Borrar" hidden><svg class="ic"><use href="#i-x"/></svg></button>
     <kbd class="kbd">Ctrl K</kbd>
@@ -61,32 +80,24 @@
   </div>
 
   <div class="top-actions">
-    <button class="icon-btn" id="btnTheme" title="Cambiar tema"><svg class="ic"><use href="#i-sun"/></svg></button>
-    <button class="icon-btn" id="btnOptions" title="Opciones"><svg class="ic"><use href="#i-settings"/></svg></button>
+    <button class="icon-btn" id="btnTheme" title="Cambiar tema" aria-label="Cambiar tema"><svg class="ic"><use href="#i-sun"/></svg></button>
+    <button class="icon-btn" id="btnOptions" title="Opciones" aria-label="Opciones"><svg class="ic"><use href="#i-settings"/></svg></button>
   </div>
 </header>
 
 <div class="layout" id="layout">
-  <aside class="sidebar" id="sidebar">
-    <nav class="nav">
-      <button class="nav-item active" data-view="explore"><svg class="ic"><use href="#i-compass"/></svg>Explorar</button>
-      <button class="nav-item" data-view="judge" id="navJudge"><svg class="ic"><use href="#i-gavel"/></svg>Preguntar al juez</button>
-      <button class="nav-item" data-view="list"><svg class="ic"><use href="#i-bookmark"/></svg>Mi lista<span class="count" id="countList">0</span></button>
-      <button class="nav-item" data-view="results"><svg class="ic"><use href="#i-table"/></svg>Resultados</button>
-      <button class="nav-item" data-view="decks"><svg class="ic"><use href="#i-layers"/></svg>Mazos<span class="count" id="countDecks">0</span></button>
-      <button class="nav-item" data-view="shops"><svg class="ic"><use href="#i-store"/></svg>Tiendas<span class="count" id="countShops">0</span></button>
-    </nav>
+  <aside class="sidebar" id="sidebar" aria-label="Filtros">
 
     <div class="filters" id="filters">
       <section class="f-group">
         <h3>Color</h3>
         <div class="mana-toggles" id="fColor">
-          <button class="mana-btn" data-v="w" title="Blanco"><span class="pip pip-w">W</span></button>
-          <button class="mana-btn" data-v="u" title="Azul"><span class="pip pip-u">U</span></button>
-          <button class="mana-btn" data-v="b" title="Negro"><span class="pip pip-b">B</span></button>
-          <button class="mana-btn" data-v="r" title="Rojo"><span class="pip pip-r">R</span></button>
-          <button class="mana-btn" data-v="g" title="Verde"><span class="pip pip-g">G</span></button>
-          <button class="mana-btn" data-v="c" title="Incoloro"><span class="pip pip-c">C</span></button>
+          <button class="mana-btn" data-v="w" title="Blanco"><img class="pip" src="https://svgs.scryfall.io/card-symbols/W.svg" alt="" onerror="this.outerHTML=pipTexto('W')"></button>
+          <button class="mana-btn" data-v="u" title="Azul"><img class="pip" src="https://svgs.scryfall.io/card-symbols/U.svg" alt="" onerror="this.outerHTML=pipTexto('U')"></button>
+          <button class="mana-btn" data-v="b" title="Negro"><img class="pip" src="https://svgs.scryfall.io/card-symbols/B.svg" alt="" onerror="this.outerHTML=pipTexto('B')"></button>
+          <button class="mana-btn" data-v="r" title="Rojo"><img class="pip" src="https://svgs.scryfall.io/card-symbols/R.svg" alt="" onerror="this.outerHTML=pipTexto('R')"></button>
+          <button class="mana-btn" data-v="g" title="Verde"><img class="pip" src="https://svgs.scryfall.io/card-symbols/G.svg" alt="" onerror="this.outerHTML=pipTexto('G')"></button>
+          <button class="mana-btn" data-v="c" title="Incoloro"><img class="pip" src="https://svgs.scryfall.io/card-symbols/C.svg" alt="" onerror="this.outerHTML=pipTexto('C')"></button>
         </div>
         <div class="seg" id="fColorMode">
           <button data-v="incl" class="on" title="Tiene al menos estos colores">Incluye</button>
@@ -186,10 +197,12 @@
 
   <main class="content" id="content">
     <div class="toolbar">
+      <button class="icon-btn" id="btnSidebar" title="Mostrar u ocultar los filtros" aria-label="Mostrar u ocultar los filtros"><svg class="ic"><use href="#i-panel"/></svg></button>
       <div class="toolbar-left">
         <h1 class="view-title" id="viewTitle">Explorar</h1>
         <span class="result-count" id="resultCount"></span>
       </div>
+      <div class="view-actions" id="viewActions"></div>
       <div class="toolbar-right">
         <label class="sort">
           <svg class="ic"><use href="#i-sort"/></svg>
@@ -200,7 +213,7 @@
             <option value="released">Fecha</option>
           </select>
         </label>
-        <button class="icon-btn" id="sortDir" title="Invertir orden">↑</button>
+        <button class="icon-btn" id="sortDir" title="Invertir orden" aria-label="Invertir orden"><svg class="ic"><use href="#i-arrow-up"/></svg></button>
         <div class="seg view-toggle">
           <button data-v="grid" class="on" title="Rejilla"><svg class="ic"><use href="#i-grid"/></svg></button>
           <button data-v="rows" title="Lista compacta"><svg class="ic"><use href="#i-list"/></svg></button>
@@ -234,6 +247,7 @@
 
 <div class="scrim" id="scrim"></div>
 <div class="foto-preview skel" id="fotoPreview" hidden aria-hidden="true"></div>
+<div class="card-preview" id="cardPreview" hidden aria-hidden="true"></div>
 
 <dialog class="modal" id="pasteDlg">
   <form method="dialog" class="modal-body" id="pasteForm">

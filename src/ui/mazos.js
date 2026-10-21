@@ -145,8 +145,8 @@ function renderDecks() {
     S.deck = null;
     title.textContent = "Mazos";
     count.textContent = S.decks.length ? `${S.decks.length} mazo${S.decks.length > 1 ? "s" : ""}` : "";
+    if (S.decks.length) $("#viewActions").innerHTML = `${S.opt.ia ? `<button class="btn" data-ia="crear"><svg class="ic"><use href="#i-sparkles"/></svg>Crear con IA</button>` : ""}<button class="btn primary" data-deck-new><svg class="ic"><use href="#i-plus"/></svg>Nuevo mazo</button>`;
     results.innerHTML = S.decks.length ? `
-      <div class="deck-top">${S.opt.ia ? `<button class="btn" data-ia="crear"><svg class="ic"><use href="#i-plus"/></svg>Crear con IA</button>` : ""}<button class="btn primary" data-deck-new><svg class="ic"><use href="#i-plus"/></svg>Nuevo mazo</button></div>
       <div class="deck-tiles">${S.decks.map(tileMazo).join("")}</div>`
       : empty("layers", "Aún no tienes mazos", "Crea un mazo de cualquier formato, pega su lista o añade cartas una a una, y compra en tus tiendas solo lo que te falta.",
         `<div class="suggestions"><button class="btn primary" data-deck-new><svg class="ic"><use href="#i-plus"/></svg>Nuevo mazo</button>${S.opt.ia ? `<button class="btn" data-ia="crear">Crear con IA</button>` : ""}</div>`);
@@ -157,24 +157,31 @@ function renderDecks() {
   count.textContent = `${i.f.n} · ${i.total} cartas`;
   const portada = d.cards.find(e => e.zone === "commander") || d.cards[0];
   results.innerHTML = `
+    <section class="deck-hero"${portada ? ` style="--art:url('${esc(img(portada.card, "art_crop"))}')"` : ""}>
+      <button class="deck-back" data-deck-back><svg class="ic"><use href="#i-chevron-left"/></svg>Mazos</button>
+      <input class="deck-name" id="deckName" value="${esc(d.name)}" aria-label="Nombre del mazo" spellcheck="false">
+      <div class="deck-hero-meta">
+        <select class="field deck-format" id="deckFormat" aria-label="Formato">${Object.entries(FORMATOS_MAZO).map(([k, f]) => `<option value="${k}"${k === d.format ? " selected" : ""}>${f.n}</option>`).join("")}</select>
+        ${coloresMazo(i).length ? `<span class="deck-hero-pips">${coloresMazo(i).map(k => pip(k)).join("")}</span>` : ""}
+        <span title="${i.f.copies === 1 ? "Singleton: una copia de cada" : i.f.copies === Infinity ? "Sin límite de copias" : `Hasta ${i.f.copies} copias de cada`}">${i.f.size ? `${i.total} / ${i.f.size}` : i.total} cartas</span>
+        <span title="${i.sinPrecio ? `${i.sinPrecio} sin precio conocido` : "Precio de referencia (Scryfall)"}">${fmtEur(i.valor)}</span>
+        <span>Tengo ${i.tengo} / ${i.copias}</span>
+        <span class="${i.faltanCopias ? "falta" : "ok"}">${i.faltanCopias ? `Faltan ${i.faltanCopias} · ${fmtEur(i.faltanValor)}` : "Completo"}</span>
+      </div>
+    </section>
     <div class="deck-head">
-      <button class="btn sm ghost" data-deck-back>← Mazos</button>
-      <input class="field deck-name" id="deckName" value="${esc(d.name)}" aria-label="Nombre del mazo">
-      <select class="field deck-format" id="deckFormat" aria-label="Formato">${Object.entries(FORMATOS_MAZO).map(([k, f]) => `<option value="${k}"${k === d.format ? " selected" : ""}>${f.n}</option>`).join("")}</select>
-      <span class="grow"></span>
-      <button class="btn sm" data-pt-abrir="manos" title="Roba manos de 7, haz mulligans y mira la probabilidad de tierras">Manos iniciales</button>
-      <button class="btn sm" data-pt-abrir="partida" title="Juega una partida de prueba en solitario">Playtest</button>
-      ${S.opt.ia ? `<button class="btn sm" data-deck-juez title="Pregunta al juez con este mazo como contexto"><svg class="ic"><use href="#i-gavel"/></svg>Juez</button>` : ""}
-      <button class="btn sm" data-deck-baratas title="Cambia cada carta a su edición más barata">Arte más barato</button>
-      <button class="btn sm" data-deck-paste><svg class="ic"><use href="#i-clipboard"/></svg>Pegar lista</button>
-      <button class="btn sm" data-deck-export title="Copia la lista como texto">Copiar lista</button>
-      <button class="btn sm ghost" data-deck-delete title="Eliminar mazo"><svg class="ic"><use href="#i-trash"/></svg></button>
-    </div>
-    <div class="deck-stats">
-      ${tile("Valor del mazo", fmtEur(i.valor), i.sinPrecio ? `${i.sinPrecio} sin precio conocido` : "Precio de referencia (Scryfall)")}
-      ${tile("Las tengo", `${i.tengo} / ${i.copias}`, `${i.distintas} cartas distintas`)}
-      ${tile("Me faltan", i.faltanCopias ? String(i.faltanCopias) : "Nada", i.faltanCopias ? `${fmtEur(i.faltanValor)} para completarlo` : "Tienes todas las cartas")}
-      ${tile("Cartas", i.f.size ? `${i.total} / ${i.f.size}` : String(i.total), i.f.copies === 1 ? "Singleton: una copia de cada" : i.f.copies === Infinity ? "Sin límite de copias" : `Hasta ${i.f.copies} copias de cada`)}
+      <span class="deck-head-group">
+        <button class="icon-btn" data-rail title="Mostrar u ocultar los filtros de compra" aria-label="Mostrar u ocultar los filtros de compra"><svg class="ic"><use href="#i-panel"/></svg></button>
+        <button class="btn sm" data-pt-abrir="manos" title="Roba manos de 7, haz mulligans y mira la probabilidad de tierras">Manos iniciales</button>
+        <button class="btn sm" data-pt-abrir="partida" title="Juega una partida de prueba en solitario">Playtest</button>
+        ${S.opt.ia ? `<button class="btn sm" data-deck-juez title="Pregunta al juez con este mazo como contexto"><svg class="ic"><use href="#i-gavel"/></svg>Juez</button>` : ""}
+      </span>
+      <span class="deck-head-group">
+        <button class="btn sm ghost" data-deck-baratas title="Cambia cada carta a su edición más barata">Arte más barato</button>
+        <button class="btn sm ghost" data-deck-paste><svg class="ic"><use href="#i-clipboard"/></svg>Pegar lista</button>
+        <button class="btn sm ghost" data-deck-export title="Copia la lista como texto">Copiar lista</button>
+        <button class="btn sm ghost danger" data-deck-delete title="Eliminar mazo" aria-label="Eliminar mazo"><svg class="ic"><use href="#i-trash"/></svg></button>
+      </span>
     </div>
     <div class="deck-buy">
       <span>${i.faltanCopias ? `Marca <b>Tengo</b> en las cartas que ya tienes. Se buscarán las <b>${i.faltan.length}</b> restantes (${i.faltanCopias} copias) en tus <b>${S.shops.length}</b> tiendas.` : "Tienes todas las cartas de este mazo."}</span>
@@ -189,7 +196,7 @@ function renderDecks() {
           <input class="field" id="deckAddInput" placeholder="Añadir carta al mazo…" spellcheck="false">
           <ul class="suggest" id="deckSuggest" hidden></ul>
         </form>
-        ${d.cards.length ? listaMazo(d, i) : `<p class="deck-empty">Este mazo está vacío. Busca cartas arriba o pulsa <b>Pegar lista</b>.</p>`}
+        ${d.cards.length ? `<div class="deck-cols">${listaMazo(d, i)}</div>` : `<p class="deck-empty">Este mazo está vacío. Busca cartas arriba o pulsa <b>Pegar lista</b>.</p>`}
       </div>
       <aside class="deck-side">
         ${portada ? `<span class="deck-preview-wrap${esFoil(portada) ? " foil" : ""}" id="deckPreviewWrap" data-def-foil="${esFoil(portada) ? 1 : ""}"><img class="deck-preview" id="deckPreview" alt="" src="${esc(img(portada.card))}" data-def="${esc(img(portada.card))}"></span>` : ""}
@@ -203,13 +210,16 @@ function renderDecks() {
     </div>`;
 }
 
-const tile = (l, v, h) => `<div class="deck-stat"><small>${l}</small><b>${v}</b><span>${h}</span></div>`;
+// Identidad de color; sin comandante, los colores de sus costes
+const coloresMazo = i => i.identidad.length ? i.identidad : "WUBRG".split("").filter(k => i.pips[k]);
 
 function tileMazo(d) {
   const i = infoMazo(d);
   const c = d.cards.find(e => e.zone === "commander")?.card || d.cards[0]?.card;
+  const colores = coloresMazo(i);
   return `<button class="deck-tile" data-deck-open="${d.id}">
     <span class="deck-tile-art">${c ? `<img alt="" loading="lazy" src="${esc(img(c, "art_crop"))}">` : ""}</span>
+    <span class="deck-tile-tags"><span class="deck-tile-format">${i.f.n}</span>${colores.length ? `<span class="deck-tile-pips">${colores.map(k => pip(k)).join("")}</span>` : ""}</span>
     <span class="deck-tile-meta"><b>${esc(d.name)}</b><small>${i.f.n} · ${i.total} cartas · ${fmtEur(i.valor)}</small>
     <small class="${i.faltanCopias ? "" : "ok"}">${i.faltanCopias ? `Faltan ${i.faltanCopias}` : "Completo"}${i.avisos.length ? ` · <span class="warn">${i.avisos.length} aviso${i.avisos.length > 1 ? "s" : ""}</span>` : ""}</small></span>
   </button>`;
@@ -220,15 +230,15 @@ function listaMazo(d, i) {
     const k = d.cards.indexOf(e), c = e.card;
     const fuera = i.f.cmd && e.zone !== "commander" && i.identidad.length && (c.color_identity || []).some(x => !i.identidad.includes(x));
     return `<div class="deck-row${e.have ? " have" : ""}${fuera ? " bad" : ""}" data-k="${k}">
-      <label class="deck-have" title="La tengo"><input type="checkbox" data-deck-have="${k}"${e.have ? " checked" : ""}><span>Tengo</span></label>
+      <label class="deck-have" title="La tengo"><input type="checkbox" data-deck-have="${k}"${e.have ? " checked" : ""}><span class="sr-only">Tengo</span></label>
       <span class="deck-qty"><button data-deck-qty="${k}" data-d="-1" title="Quitar una">−</button><b>${e.qty}</b><button data-deck-qty="${k}" data-d="1" title="Añadir una">+</button></span>
       <button class="deck-cname" data-deck-card="${k}" title="Ver carta">${esc(c.name)}${esFoil(e) ? ` <span class="foil-tag">Foil</span>` : ""}</button>
       <span class="cost">${cost(manaCost(c))}</span>
       <span class="deck-price">${precioE(e) ? fmtEur(precioE(e) * e.qty) : ""}</span>
-      <select class="deck-zone" data-deck-zone="${k}" title="Mover a">${Object.entries(ZONAS).filter(([z]) => z !== "commander" || i.f.cmd || i.f.cmdOpcional)
+      <span class="deck-tools"><select class="deck-zone" data-deck-zone="${k}" title="Mover a">${Object.entries(ZONAS).filter(([z]) => z !== "commander" || i.f.cmd || i.f.cmdOpcional)
         .map(([z, n]) => `<option value="${z}"${z === e.zone ? " selected" : ""}>${n}</option>`).join("")}</select>
       <button class="icon-btn sm" data-deck-art="${k}" title="Cambiar arte o edición"><svg class="ic"><use href="#i-flip"/></svg></button>
-      <button class="icon-btn sm" data-deck-rm="${k}" title="Quitar del mazo"><svg class="ic"><use href="#i-x"/></svg></button>
+      <button class="icon-btn sm" data-deck-rm="${k}" title="Quitar del mazo"><svg class="ic"><use href="#i-x"/></svg></button></span>
     </div>`;
   }).join("");
   const grupo = (titulo, es) => es.length ? `<section class="deck-group"><h3>${titulo}<span>${cuenta(es)}</span><span class="deck-sub">${fmtEur(es.reduce((s, e) => s + precioE(e) * e.qty, 0))}</span></h3>${filas(es)}</section>` : "";
@@ -265,6 +275,7 @@ function panelCurva(i) {
 function panelColores(i) {
   const pips = Object.entries(i.pips).filter(([, n]) => n), total = pips.reduce((s, [, n]) => s + n, 0);
   return `<section class="deck-panel"><h3>Colores y tipos</h3>
+    ${total ? `<div class="deck-colorbar">${pips.map(([c, n]) => `<i class="c-${c.toLowerCase()}" style="flex:${n}" title="${n}"></i>`).join("")}</div>` : ""}
     ${total ? `<div class="deck-pips">${pips.map(([c, n]) => `<span>${pip(c)}<b>${n}</b><small>${Math.round(n / total * 100)} %</small></span>`).join("")}</div>` : ""}
     <div class="deck-types">${i.tipos.map(([n, q]) => `<span>${n}<b>${q}</b></span>`).join("")}</div></section>`;
 }
@@ -474,7 +485,7 @@ let IA = null; // { tarea, formato, r, ocupada }
 function panelIA(d) {
   const cmd = fmtMazo(d).cmd;
   const p = S.iaPrueba;
-  return `<section class="deck-panel"><h3>Asistente IA${p?.ok ? `<span>${esc(p.plan)}</span>` : ""}</h3><div class="ia-tasks">${Object.entries(IA_TAREAS)
+  return `<section class="deck-panel ia-panel"><h3>Asistente IA${p?.ok ? `<span>${esc(p.plan)}</span>` : ""}</h3><div class="ia-tasks">${Object.entries(IA_TAREAS)
     .filter(([k]) => k !== "crear" && (k !== "bracket" || cmd))
     .map(([k, [b]]) => `<button class="btn sm" data-ia="${k}">${b}</button>`).join("")}</div>
     ${p?.ok ? "" : `<p class="deck-note ${p ? "warn" : "muted"}">${p ? `La última prueba falló: ${esc(p.error)}` : "Aún no has probado la conexión con Claude."} Revísalo en Opciones → Inteligencia artificial.</p>`}</section>`;
@@ -800,6 +811,7 @@ document.addEventListener("click", e => {
   const k = el => d.cards[+el];
   let x;
   if (t.closest("[data-deck-new]")) return nuevoMazo();
+  if (t.closest("[data-rail]")) return $("#btnSidebar").click();
   if ((x = t.closest("[data-deck-open]"))) { S.deck = x.dataset.deckOpen; save(); render(); $("#scroller").scrollTop = 0; return; }
   if (t.closest("[data-deck-back]")) { S.deck = null; save(); render(); return; }
   if ((x = t.closest("[data-ia]"))) return abrirIA(x.dataset.ia);
