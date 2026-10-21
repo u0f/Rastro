@@ -181,9 +181,9 @@ class Api:
     def reglas_estado(self):
         return juez.estado()
 
-    def juez_preguntar(self, pregunta, historial=None, esfuerzo="equilibrado"):
-        """Preguntar al juez: una duda de reglas con su historial reciente (ver juez.py)."""
-        return juez.preguntar(pregunta, historial, esfuerzo)
+    def juez_preguntar(self, pregunta, historial=None, esfuerzo="equilibrado", mazo=None):
+        """Preguntar al juez: una duda de reglas con su historial reciente y, si se vincula, un mazo (ver juez.py)."""
+        return juez.preguntar(pregunta, historial, esfuerzo, mazo)
 
     def ia_estado(self):
         """Comprobación rápida (sin gastar uso) antes de abrir una tarea de IA: instalado, sesión y cuenta."""

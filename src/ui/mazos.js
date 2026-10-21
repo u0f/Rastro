@@ -30,6 +30,8 @@ const esFoil = e => e.foil ?? soloFoil(e.card);
 const tieneFoil = c => !c.finishes || c.finishes.some(f => f !== "nonfoil");
 const precioE = e => parseFloat(esFoil(e) ? e.card.prices?.eur_foil || e.card.prices?.eur_etched || e.card.prices?.eur : eur(e.card)) || 0;
 const libre = c => /basic land/i.test(c.type_line) || /any number of cards named/i.test(c.oracle_text || "");
+// Prohibida o fuera del formato según Scryfall (los formatos libres no tienen banlist)
+const ilegalEn = (c, f) => { const l = c.legalities?.[f]; return !FORMATOS_MAZO[f]?.libre && !!l && l !== "legal" && l !== "restricted"; };
 const cuenta = (es, f = () => true) => es.filter(f).reduce((n, e) => n + e.qty, 0);
 
 /* ---------- Leer una decklist con secciones ---------- */
@@ -160,6 +162,10 @@ function renderDecks() {
       <input class="field deck-name" id="deckName" value="${esc(d.name)}" aria-label="Nombre del mazo">
       <select class="field deck-format" id="deckFormat" aria-label="Formato">${Object.entries(FORMATOS_MAZO).map(([k, f]) => `<option value="${k}"${k === d.format ? " selected" : ""}>${f.n}</option>`).join("")}</select>
       <span class="grow"></span>
+      <button class="btn sm" data-pt-abrir="manos" title="Roba manos de 7, haz mulligans y mira la probabilidad de tierras">Manos iniciales</button>
+      <button class="btn sm" data-pt-abrir="partida" title="Juega una partida de prueba en solitario">Playtest</button>
+      ${S.opt.ia ? `<button class="btn sm" data-deck-juez title="Pregunta al juez con este mazo como contexto"><svg class="ic"><use href="#i-gavel"/></svg>Juez</button>` : ""}
+      <button class="btn sm" data-deck-baratas title="Cambia cada carta a su edición más barata">Arte más barato</button>
       <button class="btn sm" data-deck-paste><svg class="ic"><use href="#i-clipboard"/></svg>Pegar lista</button>
       <button class="btn sm" data-deck-export title="Copia la lista como texto">Copiar lista</button>
       <button class="btn sm ghost" data-deck-delete title="Eliminar mazo"><svg class="ic"><use href="#i-trash"/></svg></button>
@@ -425,6 +431,22 @@ function comprarFaltan() {
   startShopSearch();
 }
 
+// Cambia todas las cartas del mazo a su edición de papel más barata (Scryfall). Las básicas no se tocan.
+async function artesBaratos() {
+  const d = deckActual(); if (!d?.cards.length) return;
+  if (!confirm("Cada carta pasará a su edición más barata según Scryfall (sin foil, salvo las que solo existen en foil). Las tierras básicas no se tocan. ¿Seguir?")) return;
+  toast("Buscando la edición más barata de cada carta…");
+  const antes = d.cards.map(e => [e.card.id, precioE(e) * e.qty]);
+  try { await masBaratas(d.cards); } catch { return toast("No se pudo contactar con Scryfall. Inténtalo de nuevo"); }
+  let n = 0, ahorro = 0;
+  d.cards.forEach((e, k) => {
+    if (e.card.id === antes[k][0]) return;
+    delete e.foil; n++; ahorro += antes[k][1] - precioE(e) * e.qty;
+  });
+  save(); render();
+  toast(n ? `${n} carta${n > 1 ? "s" : ""} cambiada${n > 1 ? "s" : ""}${ahorro > 0 ? `: ahorras ${fmtEur(ahorro)}` : ""}` : "Ya tenías la edición más barata de todas");
+}
+
 const textoMazo = d => Object.keys(ZONAS).map(z => {
   const es = d.cards.filter(e => e.zone === z);
   return es.length ? `${{ commander: "Commander", main: "Deck", side: "Sideboard" }[z]}\n${es.map(e => `${e.qty} ${e.card.name} (${e.card.set.toUpperCase()}) ${e.card.collector_number}`).join("\n")}` : "";
@@ -532,6 +554,7 @@ async function pedirIA() {
   // un 5 %, la IA lo reajusta (hasta 2 veces). Al final se queda el intento más cercano al presupuesto sin pasarse.
   if (IA === yo && tarea === "crear" && r.valido && r.lista?.length) {
     const presupuesto = r.presupuesto || presupuestoDe(texto), intentos = [];
+    let arreglos = 0;
     for (let vuelta = 1; ; vuelta++) {
       status.textContent = "Buscando la impresión más barata de cada carta en Scryfall…";
       let res;
@@ -540,6 +563,19 @@ async function pedirIA() {
         await masBaratas(res.found);
       } catch { if (!intentos.length) r = { error: "No se pudo contactar con Scryfall." }; break; }
       if (IA !== yo) return;
+      // Cartas prohibidas o fuera del formato: la IA las cambia (hasta 2 veces); las que queden se quitan
+      const malas = [...new Set(res.found.filter(x => ilegalEn(x.card, IA.formato)).map(x => x.card.name))];
+      if (malas.length && arreglos < 2) {
+        arreglos++; vuelta--;
+        status.textContent = `No son legales en ${formato}: ${malas.join(", ")}. La IA las está cambiando, intento ${arreglos} de 2…`;
+        const nuevo = await llamar("legal", fichaMazo({ cards: res.found }, true), formato, texto, null, null, `Cartas de <mazo> que no son legales en ${formato} (prohibidas o fuera del formato, según Scryfall): ${malas.join(", ")}.`);
+        if (IA !== yo) return;
+        if (!nuevo.error && nuevo.valido && nuevo.lista.length) { r = { ...nuevo, nombre: nuevo.nombre || r.nombre, presupuesto: r.presupuesto }; continue; }
+      }
+      if (malas.length) {
+        res.found = res.found.filter(x => !ilegalEn(x.card, IA.formato));
+        aviso = `Se han quitado cartas no legales en ${formato}: ${malas.join(", ")}. Revisa que el mazo quede completo.`;
+      }
       const total = res.found.reduce((t, x) => t + coste(x), 0);
       intentos.push({ r, cartas: res.found, missing: res.missing, total });
       if (!presupuesto || total <= presupuesto * 1.05) break;
@@ -694,6 +730,8 @@ async function aplicarIA() {
     catch { go.disabled = false; status.innerHTML = `<span class="bad">No se pudo contactar con Scryfall.</span>`; return; }
   }
   let d = deckActual();
+  const prohibidas = crear ? [] : [...new Set(found.filter(x => ilegalEn(x.card, d.format)).map(x => x.card.name))];
+  if (prohibidas.length) found = found.filter(x => !ilegalEn(x.card, d.format));
   if (crear) {
     d = { id: crypto.randomUUID(), name: r.nombre || "Mazo de la IA", format: IA.formato, cards: [], creado: new Date().toISOString() };
     S.decks.unshift(d); S.deck = d.id;
@@ -714,7 +752,8 @@ async function aplicarIA() {
   $("#iaDlg").close();
   save(); render();
   const avisos = [missing.length && `no existen en Scryfall: ${missing.map(x => x.name).join(", ")}`,
-    noEstaban.length && `no estaban en el mazo (o son el comandante): ${noEstaban.join(", ")}`].filter(Boolean);
+    noEstaban.length && `no estaban en el mazo (o son el comandante): ${noEstaban.join(", ")}`,
+    prohibidas.length && `no se han añadido por no ser legales en ${fmtMazo(d).n}: ${prohibidas.join(", ")}`].filter(Boolean);
   toast(avisos.length ? `Hecho, pero ${avisos.join("; ")}` : crear ? `Mazo creado: ${d.name}` : "Cambios aplicados");
 }
 
@@ -769,6 +808,9 @@ document.addEventListener("click", e => {
   if (t.closest("[data-deck-export]")) return copiarLista();
   if (t.closest("[data-deck-combos]")) return buscarCombos();
   if (t.closest("[data-deck-buy]")) return comprarFaltan();
+  if (t.closest("[data-deck-baratas]")) return artesBaratos();
+  if ((x = t.closest("[data-pt-abrir]"))) return abrirPrueba(x.dataset.ptAbrir);
+  if (t.closest("[data-deck-juez]")) { S.juezMazo = d.id; save(); goView("judge"); return; }
   if (t.closest("[data-deck-delete]")) {
     if (confirm(`¿Eliminar el mazo “${d.name}”? No se puede deshacer.`)) { S.decks = S.decks.filter(m => m !== d); S.deck = null; save(); render(); }
     return;

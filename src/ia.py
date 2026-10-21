@@ -85,7 +85,9 @@ Uso del contexto:
 - EDHREC dice lo que es popular, no lo que es mejor: úsalo como referencia, no como norma.
 - Escribe en español, claro y concreto. Sin markdown, sin emojis, sin enlaces.
 - Nombres de carta: el nombre oficial exacto en inglés, tal cual aparece en Scryfall, sin edición ni número.
-- Respeta el formato del mazo: tamaño, copias por carta, legalidad y banlist. En Commander y Brawl, singleton y dentro de la
+- Respeta el formato del mazo: tamaño, copias por carta, legalidad y banlist. Nunca propongas una carta prohibida en el
+  formato ni una que no pertenezca a él (en Standard y Pioneer, solo de las colecciones que siguen en el formato); si dudas
+  de si una carta es legal, elige otra. La app comprueba la legalidad en Scryfall y te devolverá las que no lo sean. En Commander y Brawl, singleton y dentro de la
   identidad de color del comandante.
 - Cambios equilibrados: en un mazo de tamaño fijo, quita tantas copias como añadas.
 - Solo cartas reales de papel. No inventes cartas ni datos.
@@ -120,6 +122,11 @@ TAREAS = {
                    "{objetivo} €): no lo abarates de más ni rehagas el mazo. Mantén la estrategia de las indicaciones. Devuelve en "
                    "'lista' el mazo completo ya corregido, del mismo tamaño, con su zona. 'nombre': el mismo. 'resumen': la "
                    "estrategia y qué has cambiado para cuadrar el presupuesto.",
+    "legal": "Algunas cartas de <mazo> no son legales en {formato}: están prohibidas o no pertenecen al formato. Van listadas en "
+             "<contexto> y ese dato es de Scryfall: mándalo sobre tu memoria. Cambia cada una por una alternativa legal en {formato} "
+             "con la misma función y un precio parecido o menor; no añadas ninguna otra carta prohibida. No toques el resto. Devuelve "
+             "en 'lista' el mazo completo ya corregido, del mismo tamaño, con su zona. 'nombre': el mismo. 'resumen': la "
+             "estrategia y qué cartas has cambiado por legalidad.",
 }
 
 _proceso = None

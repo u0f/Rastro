@@ -876,3 +876,100 @@ body:not(.detail-open) .detail { border-left-color: transparent; }
 .field.esfuerzo { width: auto; height: 34px; padding-block: 0; padding-right: 28px; font-size: var(--fs-xs); }
 .juez-envio { display: flex; gap: 6px; align-items: center; }
 #iaEsfuerzo { margin-right: auto; }
+
+/* ---------- Probar el mazo: manos iniciales y playtest (playtest.js) ---------- */
+.pt { width: 100vw; height: 100vh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: var(--bg); color: var(--text); }
+.pt[open] { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.pt::backdrop { background: var(--scrim); }
+.pt-top { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; padding: 10px var(--s-3); border-bottom: 1px solid var(--border); background: var(--surface-1); }
+.pt-top .grow { flex: 1; }
+.pt-name { font: 650 var(--fs-lg)/1.2 var(--font-display); }
+.pt-turno { color: var(--text-2); font-size: var(--fs-sm); }
+.pt-fases { display: flex; gap: 2px; padding: 2px; border-radius: var(--r-md); background: var(--surface-3); }
+.pt-fases button { padding: 4px 8px; border: 0; border-radius: var(--r-sm); background: none; color: var(--text-2); font: inherit; font-size: var(--fs-xs); cursor: pointer; }
+.pt-fases button:hover { color: var(--text); }
+.pt-fases button.on { background: var(--accent); color: var(--accent-ink); font-weight: 650; }
+
+.pt-card { position: relative; flex: none; width: 96px; aspect-ratio: 488 / 680; border-radius: 5px; overflow: hidden; background: var(--surface-3); box-shadow: var(--shadow-sm); cursor: pointer; user-select: none; transition: transform var(--t-fast) var(--ease); }
+.pt-card img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.pt-card.tap { transform: rotate(90deg) scale(.86); }
+.pt-card.sel { outline: 3px solid var(--bad); outline-offset: 2px; opacity: .7; }
+.pt-card.back, .pt-dorso { background: repeating-linear-gradient(45deg, #3a2a1a 0 6px, #4a3420 6px 12px); border: 3px solid #1d140b; }
+.pt-txt { display: grid; place-items: center; height: 100%; padding: 6px; text-align: center; font-size: var(--fs-xs); border: 1px solid var(--border-strong); border-radius: 5px; }
+.pt-tags { position: absolute; left: 3px; right: 3px; bottom: 3px; display: flex; flex-wrap: wrap; gap: 2px; pointer-events: none; }
+.pt-tags i { padding: 0 4px; border-radius: 4px; background: rgba(0, 0, 0, .78); color: #fff; font: 600 10px/16px var(--font); font-style: normal; }
+
+/* Mano inicial */
+.pt-mull { display: grid; gap: var(--s-4); align-content: start; padding: var(--s-4); overflow: auto; }
+.pt-mull.con-stats { grid-template-columns: minmax(0, 1fr) 340px; }
+.pt-mull-mano { display: grid; gap: var(--s-3); align-content: start; }
+.pt-nota { margin: 0; font-size: var(--fs-md); }
+.pt-mano { display: flex; gap: 8px; overflow-x: auto; padding: 6px 2px; }
+.pt-mano.grande { flex-wrap: wrap; overflow: visible; }
+.pt-mano.grande .pt-card { width: 150px; }
+.pt-mano.grande .pt-card:hover { transform: translateY(-4px); }
+.pt-acciones, .pt-opciones { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+.pt-opciones { flex-direction: column; }
+.pt-stats { display: grid; gap: 10px; align-content: start; padding: var(--s-3); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface-1); }
+.pt-stats h3 { margin: 0; font-size: var(--fs-md); }
+.pt-stats p { margin: 0; }
+.pt-tabla { width: 100%; border-collapse: collapse; font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+.pt-tabla th, .pt-tabla td { padding: 4px 6px; border-top: 1px solid var(--border); text-align: right; }
+.pt-tabla th:first-child, .pt-tabla td:first-child { text-align: left; }
+.pt-tabla th { color: var(--text-3); font-weight: 500; }
+
+/* Mesa */
+.pt-mesa { display: grid; grid-template-columns: minmax(0, 1fr) 250px; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; }
+.pt-campo { display: flex; flex-direction: column; justify-content: space-between; gap: var(--s-3); padding: var(--s-3); overflow: auto; background: radial-gradient(ellipse at center, var(--surface-2), var(--bg)); }
+.pt-fila { display: flex; flex-wrap: wrap; gap: 14px; align-content: flex-start; min-height: 40px; }
+.pt-fila.tierras { padding-top: var(--s-2); border-top: 1px dashed var(--border-strong); }
+.pt-vacio { margin: auto; max-width: 420px; color: var(--text-3); font-size: var(--fs-sm); text-align: center; }
+.pt-lado { grid-row: 1 / 3; grid-column: 2; display: grid; gap: var(--s-2); align-content: start; padding: var(--s-2); overflow: auto; border-left: 1px solid var(--border); background: var(--surface-1); }
+.pt-bloque { display: grid; gap: 6px; padding: 8px; border-radius: var(--r-md); background: var(--surface-2); }
+.pt-tit { color: var(--text-3); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .04em; }
+.pt-vida { display: grid; grid-template-columns: 1fr 26px 44px 26px; align-items: center; gap: 4px; font-size: var(--fs-sm); }
+.pt-vida b { text-align: center; font: 650 var(--fs-lg)/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.pt-vida button, .pt-mana button { height: 26px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface-1); color: var(--text); font: inherit; cursor: pointer; }
+.pt-vida button:hover, .pt-mana button:hover { border-color: var(--accent); }
+.pt-mana { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.pt-mana button { display: grid; place-items: center; height: 44px; padding: 2px; }
+.pt-mana b { font-size: var(--fs-xs); min-height: 14px; }
+.pt-mini { display: flex; flex-wrap: wrap; gap: 6px; }
+.pt-mini .pt-card { width: 72px; }
+.pt-mini .deck-note { margin: 0; }
+.pt-mas { display: flex; flex-wrap: wrap; gap: 4px; }
+.pt-atajos { margin: 0; font-size: var(--fs-xs); }
+.pt-abajo { display: flex; gap: var(--s-3); align-items: flex-end; padding: var(--s-2) var(--s-3); border-top: 1px solid var(--border); background: var(--surface-1); }
+.pt-abajo .pt-mano { flex: 1; min-height: 160px; align-items: flex-end; }
+.pt-abajo .pt-mano .pt-card { width: 108px; }
+.pt-abajo .pt-mano .pt-card:hover { transform: translateY(-10px); }
+.pt-montones { display: flex; gap: var(--s-2); }
+.pt-monton { display: grid; gap: 4px; justify-items: center; width: 84px; cursor: pointer; }
+.pt-monton img, .pt-monton .pt-dorso, .pt-hueco { width: 76px; aspect-ratio: 488 / 680; border-radius: 5px; display: block; }
+.pt-hueco { border: 2px dashed var(--border-strong); }
+.pt-monton small { color: var(--text-2); font-size: var(--fs-xs); text-align: center; }
+.pt-zoom { position: fixed; top: 64px; right: 262px; width: 280px; pointer-events: none; z-index: 5; }
+.pt-zoom img { width: 100%; display: block; border-radius: 14px; box-shadow: var(--shadow-lg); }
+
+/* Menú contextual y visor de zonas */
+.pt-menu { position: fixed; z-index: 10; display: grid; min-width: 210px; padding: 4px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--surface-1); box-shadow: var(--shadow-lg); }
+.pt-menu button { padding: 7px 10px; border: 0; border-radius: var(--r-sm); background: none; color: var(--text); font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer; }
+.pt-menu button:hover { background: var(--surface-hover); }
+.pt-menu hr { width: 100%; margin: 3px 0; border: 0; border-top: 1px solid var(--border); }
+.pt-visor { position: fixed; inset: 0; z-index: 8; display: grid; place-items: center; padding: var(--s-3); background: var(--scrim); }
+.pt-visor-box { display: grid; gap: var(--s-3); width: min(1000px, 100%); max-height: 100%; padding: var(--s-4); border: 1px solid var(--border-strong); border-radius: 16px; background: var(--surface-1); box-shadow: var(--shadow-lg); }
+.pt-visor-box h2 small { color: var(--text-3); font-size: var(--fs-md); }
+.pt-visor-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--s-3); max-height: 66vh; overflow: auto; padding: 2px; }
+.pt-visor-carta { display: grid; gap: 6px; justify-items: center; }
+.pt-visor-carta .pt-card { width: 140px; cursor: grab; }
+.pt-visor-carta small { color: var(--text-3); font-size: var(--fs-xs); }
+.pt-visor-carta > div:last-child { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; }
+.pt-visor-carta .btn { height: 26px; padding: 0 8px; font-size: var(--fs-xs); }
+
+@media (max-width: 860px) {
+  .pt-mull.con-stats { grid-template-columns: 1fr; }
+  .pt-mesa { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto auto; }
+  .pt-lado { grid-row: auto; grid-column: auto; border-left: 0; border-top: 1px solid var(--border); max-height: 200px; }
+  .pt-zoom { display: none; }
+  .pt-abajo { flex-wrap: wrap; }
+}

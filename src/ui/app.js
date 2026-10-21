@@ -31,6 +31,7 @@ const S = {
   opt: { ...OPT_DEF },                                // ventana Opciones
   decks: [], deck: null,                              // mazos (mazos.js) y el abierto
   chat: [],                                           // Preguntar al juez (juez.js): mensajes de la conversación
+  juezMazo: null,                                     // mazo vinculado al juez (su id)
   iaPrueba: null,                                     // última prueba de la IA (Opciones): ok, plan, email, fecha
   sel: new Set(),                                     // cartas de Mi lista marcadas para buscar (vacío = todas)
 };
@@ -47,7 +48,7 @@ async function loadState() {
     Object.assign(S, {
       list: d.list || [], shops: d.shops || [], theme: d.theme || "dark", layout: d.layout || "grid", sidebar: d.sidebar ?? true,
       of: { ...S.of, ...d.of }, offers: d.offers || {}, missing: d.missing || [], searchedAt: d.searchedAt || null, stock: d.stock || {},
-      setup: !!d.setup, opt: { ...OPT_DEF, ...d.opt }, decks: d.decks || [], deck: d.deck || null, iaPrueba: d.iaPrueba || null, chat: d.chat || [],
+      setup: !!d.setup, opt: { ...OPT_DEF, ...d.opt }, decks: d.decks || [], deck: d.deck || null, iaPrueba: d.iaPrueba || null, chat: d.chat || [], juezMazo: d.juezMazo || null,
     });
     // Búsquedas antiguas guardaban ofertas sin precio (no comprables): fuera
     for (const o of Object.values(S.offers)) for (const s in o) o[s] = o[s].filter(r => r.precio_num > 0);
@@ -56,7 +57,7 @@ async function loadState() {
 const save = debounce(() => {
   const d = JSON.stringify({
     list: S.list, shops: S.shops, theme: S.theme, layout: S.layout, sidebar: S.sidebar,
-    of: S.of, offers: S.offers, missing: S.missing, searchedAt: S.searchedAt, stock: S.stock, setup: S.setup, opt: S.opt, decks: S.decks, deck: S.deck, iaPrueba: S.iaPrueba, chat: S.chat.slice(-40),
+    of: S.of, offers: S.offers, missing: S.missing, searchedAt: S.searchedAt, stock: S.stock, setup: S.setup, opt: S.opt, decks: S.decks, deck: S.deck, iaPrueba: S.iaPrueba, chat: S.chat.slice(-40), juezMazo: S.juezMazo,
   });
   try { bridge() ? bridge().guardar_estado(d) : localStorage.setItem("rastro", d); } catch { }
 }, 300);
